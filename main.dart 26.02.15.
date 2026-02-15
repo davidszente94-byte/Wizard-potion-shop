@@ -1,0 +1,815 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class Plant {
+  final int id;
+  final String name;
+  final int cost;
+  final Duration growTime;
+
+  const Plant(this.id, this.name, this.cost, this.growTime);
+}
+
+final List<Plant> plants = [
+  Plant(0, "Sunroot", 0, Duration(seconds: 5)),
+  Plant(1, "Moonleaf", 0, Duration(seconds: 5)),
+  Plant(2, "Starpetal", 0, Duration(seconds: 5)),
+  Plant(3, "Glow Fern", 1, Duration(minutes: 1)),
+  Plant(4, "Frost Mint", 2, Duration(minutes: 3)),
+  Plant(5, "Ember Herb", 4, Duration(minutes: 10)),
+  Plant(6, "Nightshade", 6, Duration(minutes: 30)),
+  Plant(7, "Crystal Moss", 9, Duration(hours: 1)),
+  Plant(8, "Dragon Root", 12, Duration(hours: 3)),
+  Plant(9, "Phoenix Bloom", 18, Duration(hours: 5)),
+];
+
+String getPotionName(List<int> ids) {
+  ids = List.from(ids)
+    ..sort();
+  final key = ids.join("_");
+
+  const names = {
+    "0_0_0": "Solar Tonic",
+    "1_1_1": "Lunar Draught",
+    "2_2_2": "Stellar Essence",
+    "8_8_8": "Draconic Brew",
+    "9_9_9": "Elixir of Rebirth",
+  };
+
+  return names[key] ?? "Mystic Elixir";
+}
+
+String formatTime(int seconds) {
+  if (seconds <= 0) return "Ready";
+
+  if (seconds < 60) {
+    return "$seconds sec";
+  }
+
+  int minutes = (seconds / 60).ceil();
+
+  if (minutes < 60) {
+    return "$minutes min";
+  }
+
+  int hours = (minutes / 60).ceil();
+  return "$hours h";
+}
+
+
+enum Rarity { common, rare, epic }
+
+class GameState extends ChangeNotifier {
+  int gold = 0;
+  int speedLevel = 0;
+  double brewSpeed = 1.0;
+  int unlockedSlots = 1;
+  int lastGoldGain = 0;
+  bool showGoldAnimation = false;
+
+  int speedUpgradeCost() {
+    return 50 * (speedLevel + 1);
+  }
+
+  void upgradeSpeed() {
+    int cost = speedUpgradeCost();
+    if (gold < cost) return;
+
+    gold -= cost;
+    speedLevel++;
+    brewSpeed = 1.0 + speedLevel * 0.25;
+
+    save();
+    notifyListeners();
+  }
+
+  List<Map<String, dynamic>?> garden =
+  List.generate(5, (_) => null);
+
+  List<int> storage =
+  List.generate(10, (_) => 0);
+
+  List<Map<String, dynamic>?> brewSlots =
+  List.generate(3, (_) => null);
+
+  Set<String> discovered = {};
+
+  late SharedPreferences prefs;
+
+  int nextSlotCost() {
+    if (unlockedSlots == 1) return 50;
+    if (unlockedSlots == 2) return 150;
+    return 999999;
+  }
+
+  void unlockSlot() {
+    int cost = nextSlotCost();
+    if (gold < cost) return;
+
+    gold -= cost;
+    unlockedSlots++;
+    save();
+    notifyListeners();
+  }
+
+  Future<void> load() async {
+    prefs = await SharedPreferences.getInstance();
+    gold = prefs.getInt("gold") ?? 0;
+    unlockedSlots = prefs.getInt("unlockedSlots") ?? 1;
+    speedLevel = prefs.getInt("speedLevel") ?? 0;
+    brewSpeed = 1.0 + speedLevel * 0.25;
+
+    storage =
+        List.generate(10, (i) => prefs.getInt("storage_$i") ?? 0);
+
+    for (int i = 0; i < 5; i++) {
+      String? data = prefs.getString("garden_$i");
+      if (data != null) {
+        garden[i] = jsonDecode(data);
+      }
+    }
+
+    for (int i = 0; i < 3; i++) {
+      String? data = prefs.getString("brew_$i");
+      if (data != null) {
+        brewSlots[i] = jsonDecode(data);
+      }
+    }
+
+    discovered =
+        prefs.getStringList("recipes")?.toSet() ?? {};
+
+    notifyListeners();
+  }
+
+  Future<void> save() async {
+    await prefs.setInt("unlockedSlots", unlockedSlots);
+    await prefs.setInt("speedLevel", speedLevel);
+
+    for (int i = 0; i < 10; i++) {
+      await prefs.setInt("storage_$i", storage[i]);
+    }
+
+    for (int i = 0; i < 5; i++) {
+      if (garden[i] != null) {
+        await prefs.setString(
+            "garden_$i", jsonEncode(garden[i]));
+      } else {
+        await prefs.remove("garden_$i");
+      }
+    }
+
+    for (int i = 0; i < 3; i++) {
+      if (brewSlots[i] != null) {
+        await prefs.setString(
+            "brew_$i", jsonEncode(brewSlots[i]));
+      } else {
+        await prefs.remove("brew_$i");
+      }
+    }
+
+    await prefs.setStringList(
+        "recipes", discovered.toList());
+  }
+
+  void plant(int slot, int plantId) {
+    final p = plants[plantId];
+    if (p.cost > gold) return;
+
+    gold -= p.cost;
+
+    garden[slot] = {
+      "plant": plantId,
+      "start": DateTime
+          .now()
+          .millisecondsSinceEpoch
+    };
+
+    save();
+    notifyListeners();
+  }
+
+  void harvest(int slot) {
+    final data = garden[slot];
+    if (data == null) return;
+
+    int plantId = data["plant"];
+    int start = data["start"];
+
+    final p = plants[plantId];
+    final elapsed = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(start));
+
+    if (elapsed >= p.growTime) {
+      storage[plantId]++;
+      garden[slot] = null;
+      save();
+      notifyListeners();
+    }
+  }
+
+  Rarity getRarity(List<int> ids) {
+    int total = 0;
+    for (var id in ids) {
+      total += plants[id].cost;
+    }
+
+    double avg = total / ids.length;
+
+    if (avg >= 10) return Rarity.epic;
+    if (avg >= 5) return Rarity.rare;
+    return Rarity.common;
+  }
+
+  Color rarityColor(Rarity r) {
+    switch (r) {
+      case Rarity.common:
+        return Colors.grey;
+      case Rarity.rare:
+        return Colors.blue;
+      case Rarity.epic:
+        return Colors.purple;
+    }
+  }
+
+  Duration brewTime(List<int> ids) {
+    int maxCost = 0;
+    for (var id in ids) {
+      if (plants[id].cost > maxCost) {
+        maxCost = plants[id].cost;
+      }
+    }
+
+    if (maxCost == 0) {
+      return const Duration(seconds: 5);
+    }
+
+    double factor = maxCost / 18;
+    int minutes = (10 * factor).round();
+    int hours = (10 * factor).round();
+
+    Duration base;
+    if (maxCost < 5) {
+      base = Duration(minutes: minutes);
+    } else {
+      base = Duration(hours: hours);
+    }
+
+    int adjustedSeconds =
+    (base.inSeconds / brewSpeed).round();
+
+    return Duration(seconds: adjustedSeconds);
+  }
+
+  void startBrew(int slot, List<int> ids) {
+    for (var id in ids) {
+      if (storage[id] <= 0) return;
+    }
+
+    for (var id in ids) {
+      storage[id]--;
+    }
+
+    final time = brewTime(ids);
+
+    brewSlots[slot] = {
+      "plants": ids,
+      "start": DateTime
+          .now()
+          .millisecondsSinceEpoch,
+      "time": time.inSeconds,
+      "done": false
+    };
+
+    save();
+    notifyListeners();
+  }
+
+  int calculatePotionReward(List<int> ids) {
+    int totalCost = 0;
+    for (var id in ids) {
+      totalCost += plants[id].cost;
+    }
+
+    int base = (totalCost * 2).clamp(5, 50);
+
+    ids.sort();
+    String key = ids.join("_");
+
+    if (!discovered.contains(key)) {
+      base *= 2;
+    }
+
+    final rarity = getRarity(ids);
+
+    if (rarity == Rarity.rare) base *= 2;
+    if (rarity == Rarity.epic) base *= 4;
+
+    return base;
+  }
+
+
+  void sellPotion(int slot) {
+    final data = brewSlots[slot];
+    if (data == null) return;
+
+    List<int> ids = List<int>.from(data["plants"]);
+    int reward = calculatePotionReward(ids);
+
+    gold += reward;
+    lastGoldGain = reward;
+    showGoldAnimation = true;
+
+    brewSlots[slot] = null;
+    save();
+    notifyListeners();
+
+    Future.delayed(const Duration(milliseconds: 800), () {
+      showGoldAnimation = false;
+      notifyListeners();
+    });
+  }
+
+  void checkBrew() {
+    for (int i = 0; i < 3; i++) {
+      final slot = brewSlots[i];
+      if (slot == null) continue;
+
+      if (slot["done"] == true) continue;
+
+      int start = slot["start"];
+      int total = slot["time"];
+
+      int elapsed = DateTime
+          .now()
+          .difference(
+          DateTime.fromMillisecondsSinceEpoch(start))
+          .inSeconds;
+
+      if (elapsed >= total) {
+        List<int> ids =
+        List<int>.from(slot["plants"]);
+        ids.sort();
+        discovered.add(ids.join("_"));
+        slot["done"] = true;
+      }
+    }
+
+    save();
+    notifyListeners();
+  }
+}
+
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final game = GameState();
+  bool loaded = false;
+  int screen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    game.load().then((_) {
+      setState(() {
+        loaded = true;
+      });
+      Timer.periodic(
+          const Duration(seconds: 1), (_) => game.checkBrew());
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!loaded) {
+      return const MaterialApp(
+          home: Scaffold(
+              body: Center(child: CircularProgressIndicator())));
+    }
+
+    return MaterialApp(
+        home: Builder(
+          builder: (context) =>
+              AnimatedBuilder(
+                animation: game,
+                builder: (_, __) =>
+                    Stack(
+                      children: [
+                        Scaffold(
+                          appBar: AppBar(
+                            title: Text("Gold: ${game.gold}"),
+                            actions: [
+                              TextButton(
+                                onPressed: () => setState(() => screen = 0),
+                                child: const Text("Shop", style: TextStyle(color: Colors.white)),
+                              ),
+                              TextButton(
+                                onPressed: () => setState(() => screen = 1),
+                                child: const Text("Garden", style: TextStyle(color: Colors.white)),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.book),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => RecipeBookScreen(game),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          body: screen == 0
+                              ? PotionScreen(game)
+                              : GardenScreen(game),
+                        ),
+
+                        if (game.showGoldAnimation)
+                          Positioned(
+                            top: 60,
+                            left: 20,
+                            child: TweenAnimationBuilder(
+                              tween: Tween<double>(begin: 0, end: -40),
+                              duration: const Duration(milliseconds: 800),
+                              builder: (_, double value, child) {
+                                return Transform.translate(
+                                  offset: Offset(0, value),
+                                  child: Opacity(
+                                    opacity: 1 - (value.abs() / 40),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.monetization_on,
+                                      color: Colors.amber, size: 24),
+                                  Text(
+                                    "+${game.lastGoldGain}",
+                                    style: const TextStyle(
+                                        color: Colors.amber,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+              ),
+        ),
+        );
+    }
+}
+
+class PotionScreen extends StatelessWidget {
+  final GameState game;
+
+  const PotionScreen(this.game, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Speed Lv. ${game.speedLevel}"),
+            ElevatedButton(
+              onPressed: game.gold >= game.speedUpgradeCost()
+                  ? game.upgradeSpeed
+                  : null,
+              child: Text(
+                "Upgrade (${game.speedUpgradeCost()}g)",
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+        Expanded(
+          flex: 2,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(3, (i) {
+              if (i >= game.unlockedSlots) {
+                return ElevatedButton(
+                  onPressed: game.gold >= game.nextSlotCost()
+                      ? () => game.unlockSlot()
+                      : null,
+                  child: Text(
+                    "Unlock\n${game.nextSlotCost()}g",
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+
+              final slot = game.brewSlots[i];
+
+
+              if (slot == null) {
+                return ElevatedButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => brewDialog(context, i),
+                    );
+                  },
+                  child: const Text("Brew"),
+                );
+              } else {
+                int start = slot["start"];
+                int total = slot["time"];
+                bool done = slot["done"] == true;
+
+                int elapsed = DateTime
+                    .now()
+                    .difference(
+                    DateTime.fromMillisecondsSinceEpoch(start))
+                    .inSeconds;
+
+                double progress =
+                (elapsed / total).clamp(0.0, 1.0);
+
+                List<int> ids =
+                List<int>.from(slot["plants"]);
+                String name = getPotionName(ids);
+                final rarity = game.getRarity(ids);
+
+                return SizedBox(
+                  width: 140,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedScale(
+                        scale: done ? 1.2 : 1.0,
+                        duration: const Duration(milliseconds: 400),
+                        child: Icon(
+                          Icons.local_drink,
+                          size: 80,
+                          color: done
+                              ? game.rarityColor(rarity)
+                              : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (!done) ...[
+                        LinearProgressIndicator(value: progress),
+                        const SizedBox(height: 6),
+                        Builder(
+                          builder: (_) {
+                            int remaining = (total - elapsed).clamp(0, total);
+                            return Text(formatTime(remaining));
+                          },
+                        ),
+                      ] else
+                        ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            name,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          ElevatedButton(
+                            onPressed: () => game.sellPotion(i),
+                            child: Text(
+                              "SELL for ${game.calculatePotionReward(ids)}g",
+                            ),
+                          ),
+                        ],
+                    ],
+                  ),
+                );
+              }
+            }),
+          ),
+        ),
+        Expanded(
+          child: InventoryPanel(game),
+        )
+      ],
+    );
+  }
+
+  Widget brewDialog(BuildContext context, int slot) {
+    List<int> selected = [];
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          title: const Text("Select 3 plants"),
+          content: SizedBox(
+            width: 300,
+            height: 300,
+            child: ListView(
+              children: plants.map((p) {
+                return ListTile(
+                  title: Text(
+                      "${p.name} (${game.storage[p.id]})"),
+                  onTap: () {
+                    if (game.storage[p.id] > 0 &&
+                        selected.length < 3) {
+                      selected.add(p.id);
+                      setState(() {});
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            Text("Selected: ${selected.length}/3"),
+            ElevatedButton(
+              onPressed: selected.length == 3
+                  ? () {
+                game.startBrew(slot, selected);
+                Navigator.pop(context);
+              }
+                  : null,
+              child: const Text("BREW"),
+            )
+          ],
+        );
+      },
+    );
+  }
+}
+
+
+class InventoryPanel extends StatelessWidget {
+  final GameState game;
+
+  const InventoryPanel(this.game, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.all(12),
+      child: ListView(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text("Inventory",
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
+          ),
+          ...plants.map((p) {
+            return ListTile(
+              title: Text(p.name),
+              trailing: Text("${game.storage[p.id]}"),
+            );
+          })
+        ],
+      ),
+    );
+  }
+}
+
+class GardenScreen extends StatelessWidget {
+  final GameState game;
+
+  const GardenScreen(this.game, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      children: List.generate(5, (i) {
+        final slot = game.garden[i];
+
+        if (slot == null) {
+          return ElevatedButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => plantDialog(context, i),
+              );
+            },
+            child: const Text("Plant"),
+          );
+        } else {
+          int id = slot["plant"];
+          int start = slot["start"];
+          final p = plants[id];
+
+          final elapsed = DateTime.now().difference(
+              DateTime.fromMillisecondsSinceEpoch(start));
+
+          double progress =
+              elapsed.inMilliseconds /
+                  p.growTime.inMilliseconds;
+
+          if (progress >= 1) {
+            return ElevatedButton(
+              onPressed: () => game.harvest(i),
+              child: Text("Harvest ${p.name}"),
+            );
+          }
+
+          return SizedBox(
+            width: 100,
+            child: Column(
+              children: [
+                Text(p.name),
+                LinearProgressIndicator(value: progress),
+              ],
+            ),
+          );
+        }
+      }),
+    );
+  }
+
+  Widget plantDialog(BuildContext context, int slot) {
+    return AlertDialog(
+      title: const Text("Choose plant"),
+      content: SizedBox(
+        width: 300,
+        height: 300,
+        child: GridView.count(
+          crossAxisCount: 2,
+          children: plants.map((p) {
+            return ElevatedButton(
+              onPressed: () {
+                game.plant(slot, p.id);
+                Navigator.pop(context);
+              },
+              child: Text("${p.name}\n${p.cost}g"),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class RecipeBookScreen extends StatelessWidget {
+  final GameState game;
+
+  const RecipeBookScreen(this.game, {super.key});
+
+  List<List<int>> _parseRecipes(Set<String> discovered) {
+    return discovered.map((key) {
+      return key.split("_").map(int.parse).toList();
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final recipes = _parseRecipes(game.discovered);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Potion Book")),
+      body: recipes.isEmpty
+          ? const Center(
+        child: Text(
+          "No potions discovered yet.",
+          style: TextStyle(fontSize: 18),
+        ),
+      )
+          : ListView(
+        children: recipes.map((ids) {
+          final name = getPotionName(ids);
+          final rarity = game.getRarity(ids);
+
+          return Card(
+            margin:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: ListTile(
+              leading: Icon(
+                Icons.local_drink,
+                color: game.rarityColor(rarity),
+                size: 32,
+              ),
+              title: Text(
+                name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                "Recipe: ${ids.join(" + ")}",
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
