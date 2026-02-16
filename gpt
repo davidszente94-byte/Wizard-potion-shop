@@ -1,3 +1,101 @@
+final List<Plant> plants = [
+  // COMMON (0–2)
+  Plant(0, "Sunleaf", 2, Duration(seconds: 10)),
+  Plant(1, "Moonpetal", 3, Duration(seconds: 15)),
+  Plant(2, "Starroot", 4, Duration(seconds: 20)),
+
+  // RARE (3–5)
+  Plant(3, "Frost Fern", 8, Duration(minutes: 1)),
+  Plant(4, "Mint Crystal", 10, Duration(minutes: 2)),
+  Plant(5, "Ember Blossom", 12, Duration(minutes: 3)),
+
+  // LEGENDARY (6)
+  Plant(6, "Phoenix Herb", 25, Duration(minutes: 6)),
+];
+
+
+void sellPotion(int slot) {
+  final data = brewSlots[slot];
+  if (data == null) return;
+
+  List<int> ids = List<int>.from(data["plants"]);
+  int reward = calculatePotionReward(ids);
+
+  if (doubleGoldCharges > 0) {
+    reward *= 2;
+    doubleGoldCharges--;
+  }
+
+  ids.sort();
+  String key = ids.join("_");
+  checkDailyQuests(key);
+
+  gold += reward;
+  lastGoldGain = reward;
+  showGoldAnimation = true;
+
+  brewSlots[slot] = null;
+  save();
+  notifyListeners();
+
+  Future.delayed(const Duration(milliseconds: 800), () {
+    showGoldAnimation = false;
+    notifyListeners();
+  });
+}
+
+
+
+void checkDailyQuests(String key) {
+  for (var q in dailyQuests) {
+    if (!q.done && q.recipeKey == key) {
+      q.done = true;
+      gold += q.reward;
+    }
+  }
+
+  if (dailyQuests.isNotEmpty &&
+      dailyQuests.every((q) => q.done)) {
+    giveDailyChest();
+  }
+}
+
+
+
+
+void giveDailyChest() {
+  final r = Random().nextDouble();
+
+  if (r < 0.5) {
+    storage[3] += 2;
+  } else if (r < 0.8) {
+    instantBrewTokens++;
+  } else if (r < 0.95) {
+    storage[6] += 1;
+  } else {
+    doubleGoldCharges += 3;
+  }
+}
+
+void checkBrew() {
+
+
+unlockedSlots = prefs.getInt("unlockedSlots") ?? 3;
+
+lastQuestDay = prefs.getString("lastQuestDay") ?? "";
+
+
+await prefs.setString("lastQuestDay", lastQuestDay);
+
+
+
+
+
+
+
+
+
+
 void useInstantBrew(int slot) {
   final data = brewSlots[slot];
   if (data == null) return;
