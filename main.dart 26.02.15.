@@ -17,16 +17,18 @@ class Plant {
 }
 
 final List<Plant> plants = [
-  Plant(0, "Sunroot", 0, Duration(seconds: 5)),
-  Plant(1, "Moonleaf", 0, Duration(seconds: 5)),
-  Plant(2, "Starpetal", 0, Duration(seconds: 5)),
-  Plant(3, "Glow Fern", 1, Duration(minutes: 1)),
-  Plant(4, "Frost Mint", 2, Duration(minutes: 3)),
-  Plant(5, "Ember Herb", 4, Duration(minutes: 10)),
-  Plant(6, "Nightshade", 6, Duration(minutes: 30)),
-  Plant(7, "Crystal Moss", 9, Duration(hours: 1)),
-  Plant(8, "Dragon Root", 12, Duration(hours: 3)),
-  Plant(9, "Phoenix Bloom", 18, Duration(hours: 5)),
+  // COMMON (0–2)
+  Plant("Sunleaf", 5, Colors.green),
+  Plant("Moonpetal", 6, Colors.lightBlue),
+  Plant("Starroot", 7, Colors.yellow),
+
+  // RARE (3–5)
+  Plant("Frost Fern", 15, Colors.cyan),
+  Plant("Mint Crystal", 18, Colors.teal),
+  Plant("Ember Blossom", 22, Colors.deepOrange),
+
+  // LEGENDARY (6)
+  Plant("Phoenix Herb", 100, Colors.redAccent),
 ];
 
 String getPotionName(List<int> ids) {
@@ -34,29 +36,29 @@ String getPotionName(List<int> ids) {
   final key = ids.join("_");
 
   const names = {
-    // COMMON – free plants only (5 recipes)
+    // COMMON – only plants 0–2
     "0_0_0": "Solar Tonic",
     "1_1_1": "Lunar Draught",
     "2_2_2": "Stellar Essence",
     "0_1_2": "Balanced Brew",
     "0_0_1": "Dawn Mixture",
 
-    // RARE – at least one paid plant (10 recipes)
+    // RARE – plants 3–5 involved
     "0_0_3": "Glow Tonic",
-    "1_1_3": "Moonlit Infusion",
-    "2_2_4": "Frost Essence",
+    "1_1_4": "Moonmint Infusion",
+    "2_2_5": "Ember Essence",
     "0_3_4": "Crystal Blend",
-    "1_4_5": "Ember Draught",
+    "1_4_5": "Frost Ember Draught",
     "2_3_5": "Flare Potion",
     "3_3_3": "Fern Extract",
     "4_4_4": "Mint Concentrate",
     "5_5_5": "Ember Core",
     "3_4_5": "Elemental Mix",
 
-    // LEGENDARY – very expensive
-    "9_9_9": "Elixir of Rebirth",
-    "8_9_9": "Phoenix Blood",
-    "7_9_9": "Celestial Flame",
+    // LEGENDARY – phoenix plant
+    "6_6_6": "Elixir of Rebirth",
+    "5_6_6": "Phoenix Blood",
+    "4_6_6": "Celestial Flame",
   };
 
   return names[key] ?? "Mystic Elixir";
@@ -250,8 +252,8 @@ class GameState extends ChangeNotifier {
   
     const rareRecipes = {
       "0_0_3",
-      "1_1_3",
-      "2_2_4",
+      "1_1_4",
+      "2_2_5",
       "0_3_4",
       "1_4_5",
       "2_3_5",
@@ -262,9 +264,9 @@ class GameState extends ChangeNotifier {
     };
   
     const legendaryRecipes = {
-      "9_9_9",
-      "8_9_9",
-      "7_9_9",
+      "6_6_6",
+      "5_6_6",
+      "4_6_6",
     };
   
     if (legendaryRecipes.contains(key)) {
