@@ -1,3 +1,108 @@
+children: List.generate(game.garden.length, (i) {
+  if (i >= game.unlockedSlots) {
+    int cost = game.nextGardenSlotCost();
+
+    return SizedBox(
+      width: 100,
+      height: 100,
+      child: ElevatedButton(
+        onPressed: game.gold >= cost
+            ? game.unlockGardenSlot
+            : null,
+        child: Text(
+          cost < 0
+              ? "MAX"
+              : "Unlock\n${cost}g",
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  final slot = game.garden[i];
+
+  if (slot == null) {
+    return SizedBox(
+      width: 100,
+      height: 100,
+      child: ElevatedButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (_) => plantDialog(context, i),
+          );
+        },
+        child: const Text("Plant"),
+      ),
+    );
+  } else {
+    int id = slot["plant"];
+    int start = slot["start"];
+    final p = plants[id];
+
+    final elapsed = DateTime.now().difference(
+        DateTime.fromMillisecondsSinceEpoch(start));
+
+    double progress =
+        elapsed.inMilliseconds /
+            p.growTime.inMilliseconds;
+
+    if (progress >= 1) {
+      return SizedBox(
+        width: 100,
+        height: 100,
+        child: ElevatedButton(
+          onPressed: () => game.harvest(i),
+          child: Text("Harvest\n${p.name}",
+              textAlign: TextAlign.center),
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: 100,
+      height: 100,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(p.name, textAlign: TextAlign.center),
+          const SizedBox(height: 6),
+          LinearProgressIndicator(value: progress),
+        ],
+      ),
+    );
+  }
+}),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 List<Map<String, dynamic>?> garden =
 List.generate(5, (_) => null);
 
