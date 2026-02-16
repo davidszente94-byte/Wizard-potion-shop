@@ -1,4 +1,91 @@
-      children: List.generate(game.garden.length, (i) {
+String getPotionName(List<int> ids) {
+  ids = List.from(ids)..sort();
+  final key = ids.join("_");
+
+  const names = {
+    // COMMON – free plants only (5 recipes)
+    "0_0_0": "Solar Tonic",
+    "1_1_1": "Lunar Draught",
+    "2_2_2": "Stellar Essence",
+    "0_1_2": "Balanced Brew",
+    "0_0_1": "Dawn Mixture",
+
+    // RARE – at least one paid plant (10 recipes)
+    "0_0_3": "Glow Tonic",
+    "1_1_3": "Moonlit Infusion",
+    "2_2_4": "Frost Essence",
+    "0_3_4": "Crystal Blend",
+    "1_4_5": "Ember Draught",
+    "2_3_5": "Flare Potion",
+    "3_3_3": "Fern Extract",
+    "4_4_4": "Mint Concentrate",
+    "5_5_5": "Ember Core",
+    "3_4_5": "Elemental Mix",
+
+    // LEGENDARY – very expensive
+    "9_9_9": "Elixir of Rebirth",
+    "8_9_9": "Phoenix Blood",
+    "7_9_9": "Celestial Flame",
+  };
+
+  return names[key] ?? "Mystic Elixir";
+}
+
+
+
+
+Rarity getRarity(List<int> ids) {
+  ids = List.from(ids)..sort();
+  final key = ids.join("_");
+
+  const commonRecipes = {
+    "0_0_0",
+    "1_1_1",
+    "2_2_2",
+    "0_1_2",
+    "0_0_1",
+  };
+
+  const rareRecipes = {
+    "0_0_3",
+    "1_1_3",
+    "2_2_4",
+    "0_3_4",
+    "1_4_5",
+    "2_3_5",
+    "3_3_3",
+    "4_4_4",
+    "5_5_5",
+    "3_4_5",
+  };
+
+  const legendaryRecipes = {
+    "9_9_9",
+    "8_9_9",
+    "7_9_9",
+  };
+
+  if (legendaryRecipes.contains(key)) {
+    return Rarity.epic;
+  }
+  if (rareRecipes.contains(key)) {
+    return Rarity.rare;
+  }
+  if (commonRecipes.contains(key)) {
+    return Rarity.common;
+  }
+
+  return Rarity.common;
+}
+
+
+
+
+
+
+
+
+children: List.generate(game.garden.length, (i) {
         if (i >= game.unlockedSlots) {
           int cost = game.nextGardenSlotCost();
       
