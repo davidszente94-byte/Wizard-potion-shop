@@ -1,0 +1,52 @@
+List<Map<String, dynamic>?> garden =
+List.generate(5, (_) => null);
+
+//to
+
+static const int maxGardenSlots = 10;
+
+List<Map<String, dynamic>?> garden =
+List.generate(maxGardenSlots, (_) => null);
+
+
+
+int unlockedSlots = 1;
+
+//to
+
+int unlockedSlots = 3;
+
+
+int nextGardenSlotCost() {
+  if (unlockedSlots >= maxGardenSlots) return -1;
+
+  // exponenciális ár
+  return 50 * unlockedSlots;
+}
+
+
+//to
+
+
+void unlockGardenSlot() {
+  int cost = nextGardenSlotCost();
+  if (cost < 0) return;
+  if (gold < cost) return;
+
+  gold -= cost;
+  unlockedSlots++;
+
+  save();
+  notifyListeners();
+}
+
+
+//load and saveben is!
+for (int i = 0; i < 5; i++) {
+
+//to
+
+for (int i = 0; i < maxGardenSlots; i++) {
+
+
+children: List.generate(5, (i) {
