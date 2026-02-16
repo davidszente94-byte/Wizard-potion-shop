@@ -1,3 +1,70 @@
+int checkDailyQuests(String key) {
+  int reward = 0;
+
+  for (var q in dailyQuests) {
+    if (!q.done && q.recipeKey == key) {
+      q.done = true;
+      reward += q.reward;
+    }
+  }
+
+  if (dailyQuests.isNotEmpty &&
+      dailyQuests.every((q) => q.done)) {
+    giveDailyChest();
+  }
+
+  return reward;
+}
+
+
+
+void sellPotion(int slot) {
+  final data = brewSlots[slot];
+  if (data == null) return;
+
+  List<int> ids = List<int>.from(data["plants"]);
+  int reward = calculatePotionReward(ids);
+
+  if (doubleGoldCharges > 0) {
+    reward *= 2;
+    doubleGoldCharges--;
+  }
+
+  ids.sort();
+  String key = ids.join("_");
+
+  int questReward = checkDailyQuests(key);
+  int total = reward + questReward;
+
+  gold += total;
+  lastGoldGain = total;
+  showGoldAnimation = true;
+
+  brewSlots[slot] = null;
+  save();
+  notifyListeners();
+
+  Future.delayed(const Duration(milliseconds: 800), () {
+    showGoldAnimation = false;
+    notifyListeners();
+  });
+}
+
+
+
+lastQuestDay = prefs.getString("lastQuestDay") ?? "";
+
+generateDailyQuestsIfNeeded();
+notifyListeners();
+
+
+
+
+
+
+
+
+
 final List<Plant> plants = [
   // COMMON (Active Play: 1m to 15m)
   Plant(0, "Sunleaf", 5, Duration(minutes: 1)),
