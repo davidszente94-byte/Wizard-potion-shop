@@ -137,6 +137,7 @@ class GameState extends ChangeNotifier {
   double brewSpeed = 1.0;
   int unlockedSlots = 3;
   int lastGoldGain = 0;
+  int lastQuestGain = 0;
   bool showGoldAnimation = false;
   List<DailyQuest> dailyQuests = [];
   String lastQuestDay = "";
@@ -231,10 +232,10 @@ void useInstantBrew(int slot) {
     if (data == null) return;
   
     List<int> ids = List<int>.from(data["plants"]);
-    int reward = calculatePotionReward(ids);
+    int baseReward = calculatePotionReward(ids);
   
     if (doubleGoldCharges > 0) {
-      reward *= 2;
+      baseReward *= 2;
       doubleGoldCharges--;
     }
   
@@ -242,17 +243,18 @@ void useInstantBrew(int slot) {
     String key = ids.join("_");
   
     int questReward = checkDailyQuests(key);
-    int total = reward + questReward;
   
-    gold += total;
-    lastGoldGain = total;
+    gold += baseReward + questReward;
+  
+    lastGoldGain = baseReward;
+    lastQuestGain = questReward;
     showGoldAnimation = true;
   
     brewSlots[slot] = null;
     save();
     notifyListeners();
   
-    Future.delayed(const Duration(milliseconds: 800), () {
+    Future.delayed(const Duration(milliseconds: 1000), () {
       showGoldAnimation = false;
       notifyListeners();
     });
@@ -619,40 +621,58 @@ class _MyAppState extends State<MyApp> {
                               : GardenScreen(game),
                         ),
 
-                        if (game.showGoldAnimation)
-                          Positioned(
-                            top: 60,
-                            left: 20,
-                            child: TweenAnimationBuilder(
-                              tween: Tween<double>(begin: 0, end: -40),
-                              duration: const Duration(milliseconds: 800),
-                              builder: (_, double value, child) {
-                                return Transform.translate(
-                                  offset: Offset(0, value),
-                                  child: Opacity(
-                                    opacity: 1 - (value.abs() / 40),
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.monetization_on,
-                                      color: Colors.amber, size: 24),
-                                  Text(
-                                    "+${game.lastGoldGain}",
-                                    style: const TextStyle(
-                                        color: Colors.amber,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18),
-                                  ),
-                                ],
-                              ),
-                            ),
+        if (game.showGoldAnimation)
+          Positioned(
+            top: 60,
+            left: 20,
+            child: TweenAnimationBuilder(
+              tween: Tween<double>(begin: 0, end: -40),
+              duration: const Duration(milliseconds: 900),
+              builder: (_, double value, child) {
+                return Transform.translate(
+                  offset: Offset(0, value),
+                  child: Opacity(
+                    opacity: 1 - (value.abs() / 40),
+                    child: child,
+                  ),
+                );
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.monetization_on,
+                          color: Colors.amber, size: 22),
+                      Text(
+                        "+${game.lastGoldGain}",
+                        style: const TextStyle(
+                          color: Colors.amber,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (game.lastQuestGain > 0)
+                    Row(
+                      children: [
+                        const Icon(Icons.star,
+                            color: Colors.lightBlue, size: 18),
+                        Text(
+                          "+${game.lastQuestGain} quest",
+                          style: const TextStyle(
+                            color: Colors.lightBlue,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
+                        ),
                       ],
                     ),
+                ],
               ),
+            ),
+          ),
         ),
         );
     }
