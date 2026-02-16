@@ -1,4 +1,90 @@
 final List<Plant> plants = [
+  // COMMON (Active Play: 1m to 15m)
+  Plant(0, "Sunleaf", 5, Duration(minutes: 1)),
+  Plant(1, "Moonpetal", 20, Duration(minutes: 5)),
+  Plant(2, "Starroot", 50, Duration(minutes: 15)),
+
+  // RARE (Occasional Check-ins: 1h to 8h)
+  Plant(3, "Frost Fern", 200, Duration(hours: 1)),
+  Plant(4, "Mint Crystal", 750, Duration(hours: 4)),
+  Plant(5, "Ember Blossom", 2000, Duration(hours: 8)),
+
+  // LEGENDARY (The Daily Hook: 24h)
+  Plant(6, "Phoenix Herb", 10000, Duration(hours: 24)),
+];
+
+
+Duration brewTime(List<int> ids) {
+  int totalGrowSeconds = 0;
+  for (var id in ids) {
+    totalGrowSeconds += plants[id].growTime.inSeconds;
+  }
+
+  // Brewing takes half the time it took to grow the ingredients
+  double baseSeconds = totalGrowSeconds * 0.5;
+  
+  // Minimum brew time of 30 seconds so it's never "instant" for free
+  if (baseSeconds < 30) baseSeconds = 30;
+
+  int adjustedSeconds = (baseSeconds / brewSpeed).round();
+  return Duration(seconds: adjustedSeconds);
+}
+
+
+int calculatePotionReward(List<int> ids) {
+  int totalCost = 0;
+  for (var id in ids) {
+    totalCost += plants[id].cost;
+  }
+
+  // Determine multiplier based on recipe rarity
+  final rarity = getRarity(ids);
+  double multiplier = 1.5; // Common: 50% profit
+  if (rarity == Rarity.rare) multiplier = 2.5; // Rare: 150% profit
+  if (rarity == Rarity.epic) multiplier = 5.0; // Legendary: 400% profit
+
+  double reward = totalCost * multiplier;
+
+  // First Discovery Bonus: Double the gold!
+  ids.sort();
+  String key = ids.join("_");
+  if (!discovered.contains(key)) {
+    reward *= 2;
+  }
+
+  return reward.round();
+}
+
+
+int nextGardenSlotCost() {
+  if (unlockedSlots >= maxGardenSlots) return -1;
+
+  // Exponential scaling: 500, 2500, 12500, 62500...
+  // This ensures players can't buy all slots in the first week.
+  switch (unlockedSlots) {
+    case 3: return 500;
+    case 4: return 2500;
+    case 5: return 10000;
+    case 6: return 25000;
+    case 7: return 75000;
+    case 8: return 200000;
+    case 9: return 500000;
+    default: return 1000000;
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+final List<Plant> plants = [
   // COMMON (0–2)
   Plant(0, "Sunleaf", 2, Duration(seconds: 10)),
   Plant(1, "Moonpetal", 3, Duration(seconds: 15)),
