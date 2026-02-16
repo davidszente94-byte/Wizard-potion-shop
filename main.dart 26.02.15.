@@ -18,18 +18,18 @@ class Plant {
 }
 
 final List<Plant> plants = [
-  // COMMON (0–2)
-  Plant(0, "Sunleaf", 2, Duration(seconds: 10)),
-  Plant(1, "Moonpetal", 3, Duration(seconds: 15)),
-  Plant(2, "Starroot", 4, Duration(seconds: 20)),
+  // COMMON (Active Play: 1m to 15m)
+  Plant(0, "Sunleaf", 5, Duration(minutes: 1)),
+  Plant(1, "Moonpetal", 20, Duration(minutes: 5)),
+  Plant(2, "Starroot", 50, Duration(minutes: 15)),
 
-  // RARE (3–5)
-  Plant(3, "Frost Fern", 8, Duration(minutes: 1)),
-  Plant(4, "Mint Crystal", 10, Duration(minutes: 2)),
-  Plant(5, "Ember Blossom", 12, Duration(minutes: 3)),
+  // RARE (Occasional Check-ins: 1h to 8h)
+  Plant(3, "Frost Fern", 200, Duration(hours: 1)),
+  Plant(4, "Mint Crystal", 750, Duration(hours: 4)),
+  Plant(5, "Ember Blossom", 2000, Duration(hours: 8)),
 
-  // LEGENDARY (6)
-  Plant(6, "Phoenix Herb", 25, Duration(minutes: 6)),
+  // LEGENDARY (The Daily Hook: 24h)
+  Plant(6, "Phoenix Herb", 10000, Duration(hours: 24)),
 ];
 
 class Recipe {
@@ -246,8 +246,17 @@ void sellPotion(int slot) {
 
   int nextGardenSlotCost() {
     if (unlockedSlots >= maxGardenSlots) return -1;
-
-    return 50 * unlockedSlots;
+  
+    switch (unlockedSlots) {
+      case 3: return 500;
+      case 4: return 2500;
+      case 5: return 10000;
+      case 6: return 25000;
+      case 7: return 75000;
+      case 8: return 200000;
+      case 9: return 500000;
+      default: return 1000000;
+    }
   }
 
   void unlockGardenSlot() {
@@ -388,31 +397,16 @@ void sellPotion(int slot) {
   }
 
   Duration brewTime(List<int> ids) {
-    int maxCost = 0;
+    int totalGrowSeconds = 0;
     for (var id in ids) {
-      if (plants[id].cost > maxCost) {
-        maxCost = plants[id].cost;
-      }
+      totalGrowSeconds += plants[id].growTime.inSeconds;
     }
-
-    if (maxCost == 0) {
-      return const Duration(seconds: 5);
-    }
-
-    double factor = maxCost / 18;
-    int minutes = (10 * factor).round();
-    int hours = (10 * factor).round();
-
-    Duration base;
-    if (maxCost < 5) {
-      base = Duration(minutes: minutes);
-    } else {
-      base = Duration(hours: hours);
-    }
-
-    int adjustedSeconds =
-    (base.inSeconds / brewSpeed).round();
-
+  
+    double baseSeconds = totalGrowSeconds * 0.5;
+    
+    if (baseSeconds < 30) baseSeconds = 30;
+  
+    int adjustedSeconds = (baseSeconds / brewSpeed).round();
     return Duration(seconds: adjustedSeconds);
   }
 
@@ -445,22 +439,21 @@ void sellPotion(int slot) {
     for (var id in ids) {
       totalCost += plants[id].cost;
     }
-
-    int base = (totalCost * 2).clamp(5, 50);
-
+  
+    final rarity = getRarity(ids);
+    double multiplier = 1.5; // Common: 50% profit
+    if (rarity == Rarity.rare) multiplier = 2.5; // Rare: 150% profit
+    if (rarity == Rarity.epic) multiplier = 5.0; // Legendary: 400% profit
+  
+    double reward = totalCost * multiplier;
+  
     ids.sort();
     String key = ids.join("_");
-
     if (!discovered.contains(key)) {
-      base *= 2;
+      reward *= 2;
     }
-
-    final rarity = getRarity(ids);
-
-    if (rarity == Rarity.rare) base *= 2;
-    if (rarity == Rarity.epic) base *= 4;
-
-    return base;
+  
+    return reward.round();
   }
 
 
