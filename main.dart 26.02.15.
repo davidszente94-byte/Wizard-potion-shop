@@ -174,8 +174,8 @@ class GameState extends ChangeNotifier {
     lastQuestDay = today;
     dailyQuests.clear();
   
-    final common = ["0_0_0", "1_1_1", "2_2_2"];
-    final rare = ["3_3_3", "4_4_4", "5_5_5"];
+    final common = ["0_0_0", "1_1_1", "2_2_2"].toList();
+    final rare = ["3_3_3", "4_4_4", "5_5_5"].toList();
   
     common.shuffle();
     rare.shuffle();
@@ -194,7 +194,9 @@ class GameState extends ChangeNotifier {
     ));
   
     save();
+    notifyListeners();
   }
+
   int speedUpgradeCost() {
     return 50 * (speedLevel + 1);
   }
@@ -342,6 +344,7 @@ void useInstantBrew(int slot) {
   }
 
   Future<void> save() async {
+    await prefs.setInt("gold", gold);
     await prefs.setInt("unlockedSlots", unlockedSlots);
     await prefs.setInt("speedLevel", speedLevel);
 
