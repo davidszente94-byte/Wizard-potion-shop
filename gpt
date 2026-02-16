@@ -1,3 +1,11 @@
+int questReward = checkDailyQuests(key);
+
+int total = reward + questReward;
+
+gold += total;
+lastGoldGain = total;
+
+
 int checkDailyQuests(String key) {
   int reward = 0;
 
