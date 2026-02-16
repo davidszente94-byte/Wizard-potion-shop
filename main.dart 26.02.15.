@@ -31,37 +31,52 @@ final List<Plant> plants = [
   Plant("Phoenix Herb", 100, Colors.redAccent),
 ];
 
+class Recipe {
+  final List<int> ids;
+  final String name;
+  final Rarity rarity;
+
+  const Recipe(this.ids, this.name, this.rarity);
+
+  String get key {
+    final sorted = List<int>.from(ids)..sort();
+    return sorted.join("_");
+  }
+}
+const List<Recipe> allRecipes = [
+  // COMMON
+  Recipe([0, 0, 0], "Solar Tonic", Rarity.common),
+  Recipe([1, 1, 1], "Lunar Draught", Rarity.common),
+  Recipe([2, 2, 2], "Stellar Essence", Rarity.common),
+  Recipe([0, 1, 2], "Balanced Brew", Rarity.common),
+  Recipe([0, 0, 1], "Dawn Mixture", Rarity.common),
+
+  // RARE
+  Recipe([0, 0, 3], "Glow Tonic", Rarity.rare),
+  Recipe([1, 1, 4], "Moonmint Infusion", Rarity.rare),
+  Recipe([2, 2, 5], "Ember Essence", Rarity.rare),
+  Recipe([3, 3, 3], "Fern Extract", Rarity.rare),
+  Recipe([4, 4, 4], "Mint Concentrate", Rarity.rare),
+  Recipe([5, 5, 5], "Ember Core", Rarity.rare),
+  Recipe([3, 4, 5], "Elemental Mix", Rarity.rare),
+
+  // LEGENDARY
+  Recipe([6, 6, 6], "Elixir of Rebirth", Rarity.epic),
+  Recipe([5, 6, 6], "Phoenix Blood", Rarity.epic),
+  Recipe([4, 6, 6], "Celestial Flame", Rarity.epic),
+];
+
 String getPotionName(List<int> ids) {
-  ids = List.from(ids)..sort();
-  final key = ids.join("_");
+  final sorted = List<int>.from(ids)..sort();
+  final key = sorted.join("_");
 
-  const names = {
-    // COMMON – only plants 0–2
-    "0_0_0": "Solar Tonic",
-    "1_1_1": "Lunar Draught",
-    "2_2_2": "Stellar Essence",
-    "0_1_2": "Balanced Brew",
-    "0_0_1": "Dawn Mixture",
+  for (final recipe in allRecipes) {
+    if (recipe.key == key) {
+      return recipe.name;
+    }
+  }
 
-    // RARE – plants 3–5 involved
-    "0_0_3": "Glow Tonic",
-    "1_1_4": "Moonmint Infusion",
-    "2_2_5": "Ember Essence",
-    "0_3_4": "Crystal Blend",
-    "1_4_5": "Frost Ember Draught",
-    "2_3_5": "Flare Potion",
-    "3_3_3": "Fern Extract",
-    "4_4_4": "Mint Concentrate",
-    "5_5_5": "Ember Core",
-    "3_4_5": "Elemental Mix",
-
-    // LEGENDARY – phoenix plant
-    "6_6_6": "Elixir of Rebirth",
-    "5_6_6": "Phoenix Blood",
-    "4_6_6": "Celestial Flame",
-  };
-
-  return names[key] ?? "Mystic Elixir";
+  return "Mystic Elixir";
 }
 
 
@@ -239,44 +254,13 @@ class GameState extends ChangeNotifier {
   }
 
   Rarity getRarity(List<int> ids) {
-    ids = List.from(ids)..sort();
-    final key = ids.join("_");
+    final sorted = List<int>.from(ids)..sort();
+    final key = sorted.join("_");
   
-    const commonRecipes = {
-      "0_0_0",
-      "1_1_1",
-      "2_2_2",
-      "0_1_2",
-      "0_0_1",
-    };
-  
-    const rareRecipes = {
-      "0_0_3",
-      "1_1_4",
-      "2_2_5",
-      "0_3_4",
-      "1_4_5",
-      "2_3_5",
-      "3_3_3",
-      "4_4_4",
-      "5_5_5",
-      "3_4_5",
-    };
-  
-    const legendaryRecipes = {
-      "6_6_6",
-      "5_6_6",
-      "4_6_6",
-    };
-  
-    if (legendaryRecipes.contains(key)) {
-      return Rarity.epic;
-    }
-    if (rareRecipes.contains(key)) {
-      return Rarity.rare;
-    }
-    if (commonRecipes.contains(key)) {
-      return Rarity.common;
+    for (final recipe in allRecipes) {
+      if (recipe.key == key) {
+        return recipe.rarity;
+      }
     }
   
     return Rarity.common;
@@ -860,39 +844,33 @@ class RecipeBookScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recipes = _parseRecipes(game.discovered);
-
     return Scaffold(
       appBar: AppBar(title: const Text("Potion Book")),
-      body: recipes.isEmpty
-          ? const Center(
-        child: Text(
-          "No potions discovered yet.",
-          style: TextStyle(fontSize: 18),
-        ),
-      )
-          : ListView(
-        children: recipes.map((ids) {
-          final name = getPotionName(ids);
-          final rarity = game.getRarity(ids);
-
+      body: ListView(
+        children: allRecipes.map((recipe) {
+          final discovered = game.discovered.contains(recipe.key);
+  
           return Card(
-            margin:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            margin: const EdgeInsets.symmetric(
+                horizontal: 12, vertical: 6),
             child: ListTile(
               leading: Icon(
                 Icons.local_drink,
-                color: game.rarityColor(rarity),
+                color: discovered
+                    ? game.rarityColor(recipe.rarity)
+                    : Colors.grey,
                 size: 32,
               ),
               title: Text(
-                name,
+                discovered ? recipe.name : "????",
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               subtitle: Text(
-                "Recipe: ${ids.join(" + ")}",
+                discovered
+                    ? "Recipe: ${recipe.ids.join(" + ")}"
+                    : "Recipe: ???",
               ),
             ),
           );
