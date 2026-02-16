@@ -155,6 +155,11 @@ class GameState extends ChangeNotifier {
         dailyQuests.every((q) => q.done)) {
       giveDailyChest();
     }
+
+    if (reward > 0) {
+      save();
+      notifyListeners();
+    }
   
     return reward;
   }
@@ -329,6 +334,9 @@ void useInstantBrew(int slot) {
           .map((q) => DailyQuest.fromJson(jsonDecode(q)))
           .toList();
     }
+
+    generateDailyQuestsIfNeeded();
+
     notifyListeners();
 
   }
@@ -503,6 +511,9 @@ void useInstantBrew(int slot) {
       } else {
         doubleGoldCharges += 3;
       }
+
+      save();
+      notifyListeners();
     }
   
   void checkBrew() {
