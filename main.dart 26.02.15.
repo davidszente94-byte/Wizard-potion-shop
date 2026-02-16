@@ -111,6 +111,22 @@ class DailyQuest {
     required this.reward,
     this.done = false,
   });
+
+  Map<String, dynamic> toJson() {
+    return {
+      "key": recipeKey,
+      "reward": reward,
+      "done": done,
+    };
+  }
+
+  factory DailyQuest.fromJson(Map<String, dynamic> json) {
+    return DailyQuest(
+      recipeKey: json["key"],
+      reward: json["reward"],
+      done: json["done"],
+    );
+  }
 }
 
 class GameState extends ChangeNotifier {
@@ -125,11 +141,13 @@ class GameState extends ChangeNotifier {
   List<DailyQuest> dailyQuests = [];
   String lastQuestDay = "";
 
-  void checkDailyQuests(String key) {
+  int checkDailyQuests(String key) {
+    int reward = 0;
+  
     for (var q in dailyQuests) {
       if (!q.done && q.recipeKey == key) {
         q.done = true;
-        gold += q.reward;
+        reward += q.reward;
       }
     }
   
@@ -137,17 +155,20 @@ class GameState extends ChangeNotifier {
         dailyQuests.every((q) => q.done)) {
       giveDailyChest();
     }
+  
+    return reward;
   }
 
   void generateDailyQuestsIfNeeded() {
     String today = DateTime.now().toIso8601String().substring(0, 10);
   
-    if (lastQuestDay == today) return;
+    if (lastQuestDay == today && dailyQuests.isNotEmpty) {
+      return; // már vannak questek mára
+    }
   
     lastQuestDay = today;
     dailyQuests.clear();
   
-    // 2 common + 1 rare
     final common = ["0_0_0", "1_1_1", "2_2_2"];
     final rare = ["3_3_3", "4_4_4", "5_5_5"];
   
@@ -166,10 +187,9 @@ class GameState extends ChangeNotifier {
       recipeKey: rare[0],
       reward: 30,
     ));
-
+  
     save();
   }
-
   int speedUpgradeCost() {
     return 50 * (speedLevel + 1);
   }
@@ -199,35 +219,37 @@ void useInstantBrew(int slot) {
 }
 
 
-void sellPotion(int slot) {
-  final data = brewSlots[slot];
-  if (data == null) return;
-
-  List<int> ids = List<int>.from(data["plants"]);
-  int reward = calculatePotionReward(ids);
-
-  if (doubleGoldCharges > 0) {
-    reward *= 2;
-    doubleGoldCharges--;
-  }
-
-  ids.sort();
-  String key = ids.join("_");
-  checkDailyQuests(key);
-
-  gold += reward;
-  lastGoldGain = reward;
-  showGoldAnimation = true;
-
-  brewSlots[slot] = null;
-  save();
-  notifyListeners();
-
-  Future.delayed(const Duration(milliseconds: 800), () {
-    showGoldAnimation = false;
+  void sellPotion(int slot) {
+    final data = brewSlots[slot];
+    if (data == null) return;
+  
+    List<int> ids = List<int>.from(data["plants"]);
+    int reward = calculatePotionReward(ids);
+  
+    if (doubleGoldCharges > 0) {
+      reward *= 2;
+      doubleGoldCharges--;
+    }
+  
+    ids.sort();
+    String key = ids.join("_");
+  
+    int questReward = checkDailyQuests(key);
+    int total = reward + questReward;
+  
+    gold += total;
+    lastGoldGain = total;
+    showGoldAnimation = true;
+  
+    brewSlots[slot] = null;
+    save();
     notifyListeners();
-  });
-}
+  
+    Future.delayed(const Duration(milliseconds: 800), () {
+      showGoldAnimation = false;
+      notifyListeners();
+    });
+  }
 
   static const int maxGardenSlots = 10;
 
@@ -299,9 +321,15 @@ void sellPotion(int slot) {
         prefs.getStringList("recipes")?.toSet() ?? {};
 
     lastQuestDay = prefs.getString("lastQuestDay") ?? "";
+    
+    // daily questek betöltése
+    List<String>? questJson = prefs.getStringList("dailyQuests");
+    if (questJson != null) {
+      dailyQuests = questJson
+          .map((q) => DailyQuest.fromJson(jsonDecode(q)))
+          .toList();
+    }
     notifyListeners();
-    generateDailyQuestsIfNeeded();
-
 
   }
 
@@ -334,6 +362,12 @@ void sellPotion(int slot) {
     await prefs.setStringList(
         "recipes", discovered.toList());
     await prefs.setString("lastQuestDay", lastQuestDay);
+
+    List<String> questJson = dailyQuests
+        .map((q) => jsonEncode(q.toJson()))
+        .toList();
+    
+    await prefs.setStringList("dailyQuests", questJson);
   }
 
   void plant(int slot, int plantId) {
