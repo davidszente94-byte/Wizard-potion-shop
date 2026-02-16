@@ -166,6 +166,8 @@ class GameState extends ChangeNotifier {
       recipeKey: rare[0],
       reward: 30,
     ));
+
+    save();
   }
 
   int speedUpgradeCost() {
@@ -287,10 +289,11 @@ void sellPotion(int slot) {
     discovered =
         prefs.getStringList("recipes")?.toSet() ?? {};
 
+    lastQuestDay = prefs.getString("lastQuestDay") ?? "";
     notifyListeners();
     generateDailyQuestsIfNeeded();
 
-  lastQuestDay = prefs.getString("lastQuestDay") ?? "";
+
   }
 
   Future<void> save() async {
