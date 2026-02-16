@@ -1,3 +1,120 @@
+int lastGoldGain = 0;
+int lastQuestGain = 0;
+bool showGoldAnimation = false;
+
+
+
+
+
+void sellPotion(int slot) {
+  final data = brewSlots[slot];
+  if (data == null) return;
+
+  List<int> ids = List<int>.from(data["plants"]);
+  int baseReward = calculatePotionReward(ids);
+
+  if (doubleGoldCharges > 0) {
+    baseReward *= 2;
+    doubleGoldCharges--;
+  }
+
+  ids.sort();
+  String key = ids.join("_");
+
+  int questReward = checkDailyQuests(key);
+
+  gold += baseReward + questReward;
+
+  lastGoldGain = baseReward;
+  lastQuestGain = questReward;
+  showGoldAnimation = true;
+
+  brewSlots[slot] = null;
+  save();
+  notifyListeners();
+
+  Future.delayed(const Duration(milliseconds: 1000), () {
+    showGoldAnimation = false;
+    notifyListeners();
+  });
+}
+
+
+
+
+
+
+if (game.showGoldAnimation)
+  Positioned(
+    top: 60,
+    left: 20,
+    child: TweenAnimationBuilder(
+      tween: Tween<double>(begin: 0, end: -40),
+      duration: const Duration(milliseconds: 900),
+      builder: (_, double value, child) {
+        return Transform.translate(
+          offset: Offset(0, value),
+          child: Opacity(
+            opacity: 1 - (value.abs() / 40),
+            child: child,
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.monetization_on,
+                  color: Colors.amber, size: 22),
+              Text(
+                "+${game.lastGoldGain}",
+                style: const TextStyle(
+                  color: Colors.amber,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ],
+          ),
+          if (game.lastQuestGain > 0)
+            Row(
+              children: [
+                const Icon(Icons.star,
+                    color: Colors.lightBlue, size: 18),
+                Text(
+                  "+${game.lastQuestGain} quest",
+                  style: const TextStyle(
+                    color: Colors.lightBlue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    ),
+  ),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void generateDailyQuestsIfNeeded() {
   String today = DateTime.now().toIso8601String().substring(0, 10);
 
