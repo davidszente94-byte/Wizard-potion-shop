@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -100,6 +101,18 @@ String formatTime(int seconds) {
 
 enum Rarity { common, rare, epic }
 
+class DailyQuest {
+  String recipeKey;
+  int reward;
+  bool done;
+
+  DailyQuest({
+    required this.recipeKey,
+    required this.reward,
+    this.done = false,
+  });
+}
+
 class GameState extends ChangeNotifier {
   int gold = 0;
   int speedLevel = 0;
@@ -109,6 +122,37 @@ class GameState extends ChangeNotifier {
   int unlockedSlots = 3;
   int lastGoldGain = 0;
   bool showGoldAnimation = false;
+  List<DailyQuest> dailyQuests = [];
+  String lastQuestDay = "";
+
+  void generateDailyQuestsIfNeeded() {
+    String today = DateTime.now().toIso8601String().substring(0, 10);
+  
+    if (lastQuestDay == today) return;
+  
+    lastQuestDay = today;
+    dailyQuests.clear();
+  
+    // 2 common + 1 rare
+    final common = ["0_0_0", "1_1_1", "2_2_2"];
+    final rare = ["3_3_3", "4_4_4", "5_5_5"];
+  
+    common.shuffle();
+    rare.shuffle();
+  
+    dailyQuests.add(DailyQuest(
+      recipeKey: common[0],
+      reward: 10,
+    ));
+    dailyQuests.add(DailyQuest(
+      recipeKey: common[1],
+      reward: 12,
+    ));
+    dailyQuests.add(DailyQuest(
+      recipeKey: rare[0],
+      reward: 30,
+    ));
+  }
 
   int speedUpgradeCost() {
     return 50 * (speedLevel + 1);
@@ -124,9 +168,6 @@ class GameState extends ChangeNotifier {
 
     save();
     notifyListeners();
-
-    List<DailyQuest> dailyQuests = [];
-    String lastQuestDay = "";
   }
 
 void useInstantBrew(int slot) {
@@ -141,18 +182,6 @@ void useInstantBrew(int slot) {
   notifyListeners();
 }
 
-class DailyQuest {
-  String recipeKey;
-  int reward;
-  bool done;
-
-  DailyQuest({
-    required this.recipeKey,
-    required this.reward,
-    this.done = false,
-  });
-}
-
 
 void sellPotion(int slot) {
   final data = brewSlots[slot];
@@ -164,6 +193,9 @@ void sellPotion(int slot) {
   if (doubleGoldCharges > 0) {
     reward *= 2;
     doubleGoldCharges--;
+    ids.sort();
+    String Key = ids.join("_");
+    checkDailyQuests(key);
   }
 
   gold += reward;
@@ -241,35 +273,7 @@ void sellPotion(int slot) {
         prefs.getStringList("recipes")?.toSet() ?? {};
 
     notifyListeners();
-  }
-
-  void generateDailyQuestsIfNeeded() {
-    String today = DateTime.now().toIso8601String().substring(0, 10);
-  
-    if (lastQuestDay == today) return;
-  
-    lastQuestDay = today;
-    dailyQuests.clear();
-  
-    // 2 common + 1 rare
-    final common = ["0_0_0", "1_1_1", "2_2_2"];
-    final rare = ["3_3_3", "4_4_4", "5_5_5"];
-  
-    common.shuffle();
-    rare.shuffle();
-  
-    dailyQuests.add(DailyQuest(
-      recipeKey: common[0],
-      reward: 10,
-    ));
-    dailyQuests.add(DailyQuest(
-      recipeKey: common[1],
-      reward: 12,
-    ));
-    dailyQuests.add(DailyQuest(
-      recipeKey: rare[0],
-      reward: 30,
-    ));
+    generateDailyQuestsIfNeeded();
   }
 
   Future<void> save() async {
@@ -439,37 +443,6 @@ void sellPotion(int slot) {
   }
 
 
-  void sellPotion(int slot) {
-    final data = brewSlots[slot];
-    if (data == null) return;
-
-    List<int> ids = List<int>.from(data["plants"]);
-    int reward = calculatePotionReward(ids);
-
-    gold += reward;
-    lastGoldGain = reward;
-    showGoldAnimation = true;
-
-    brewSlots[slot] = null;
-    save();
-    notifyListeners();
-
-    Future.delayed(const Duration(milliseconds: 800), () {
-      showGoldAnimation = false;
-      notifyListeners();
-    void checkDailyQuests(String key) {
-      for (var q in dailyQuests) {
-        if (!q.done && q.recipeKey == key) {
-          q.done = true;
-          gold += q.reward;
-        }
-      }
-    
-      // ha mind kész → chest
-      if (dailyQuests.every((q) => q.done)) {
-        giveDailyChest();
-      }
-    }
     void giveDailyChest() {
       final r = Random().nextDouble();
     
@@ -656,11 +629,11 @@ class PotionScreen extends StatelessWidget {
             children: List.generate(3, (i) {
               if (i >= game.unlockedSlots) {
                 return ElevatedButton(
-                  onPressed: game.gold >= game.nextSlotCost()
-                      ? () => game.unlockSlot()
+                  onPressed: game.gold >= game.nextGardenSlotCost()
+                      ? () => game.unlockGardenSlot()
                       : null,
                   child: Text(
-                    "Unlock\n${game.nextSlotCost()}g",
+                    "Unlock\n${game.nextGardenSlotCost()}g",
                     textAlign: TextAlign.center,
                   ),
                 );
