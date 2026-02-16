@@ -1,3 +1,96 @@
+class DailyQuest {
+  String recipeKey;
+  int reward;
+  bool done;
+
+  DailyQuest({
+    required this.recipeKey,
+    required this.reward,
+    this.done = false,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      "key": recipeKey,
+      "reward": reward,
+      "done": done,
+    };
+  }
+
+  factory DailyQuest.fromJson(Map<String, dynamic> json) {
+    return DailyQuest(
+      recipeKey: json["key"],
+      reward: json["reward"],
+      done: json["done"],
+    );
+  }
+}
+
+
+// daily quests mentése
+List<String> questJson = dailyQuests
+    .map((q) => jsonEncode(q.toJson()))
+    .toList();
+
+await prefs.setStringList("dailyQuests", questJson);
+
+
+lastQuestDay = prefs.getString("lastQuestDay") ?? "";
+
+// daily questek betöltése
+List<String>? questJson = prefs.getStringList("dailyQuests");
+if (questJson != null) {
+  dailyQuests = questJson
+      .map((q) => DailyQuest.fromJson(jsonDecode(q)))
+      .toList();
+}
+
+
+
+
+void generateDailyQuestsIfNeeded() {
+  String today = DateTime.now().toIso8601String().substring(0, 10);
+
+  if (lastQuestDay == today && dailyQuests.isNotEmpty) {
+    return; // már vannak questek mára
+  }
+
+  lastQuestDay = today;
+  dailyQuests.clear();
+
+  final common = ["0_0_0", "1_1_1", "2_2_2"];
+  final rare = ["3_3_3", "4_4_4", "5_5_5"];
+
+  common.shuffle();
+  rare.shuffle();
+
+  dailyQuests.add(DailyQuest(
+    recipeKey: common[0],
+    reward: 10,
+  ));
+  dailyQuests.add(DailyQuest(
+    recipeKey: common[1],
+    reward: 12,
+  ));
+  dailyQuests.add(DailyQuest(
+    recipeKey: rare[0],
+    reward: 30,
+  ));
+
+  save();
+}
+
+
+
+
+
+
+
+
+
+
+
+
 int questReward = checkDailyQuests(key);
 
 int total = reward + questReward;
