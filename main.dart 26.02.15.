@@ -19,17 +19,17 @@ class Plant {
 
 final List<Plant> plants = [
   // COMMON (0–2)
-  Plant("Sunleaf", 5, Colors.green),
-  Plant("Moonpetal", 6, Colors.lightBlue),
-  Plant("Starroot", 7, Colors.yellow),
+  Plant(0, "Sunleaf", 2, Duration(seconds: 10)),
+  Plant(1, "Moonpetal", 3, Duration(seconds: 15)),
+  Plant(2, "Starroot", 4, Duration(seconds: 20)),
 
   // RARE (3–5)
-  Plant("Frost Fern", 15, Colors.cyan),
-  Plant("Mint Crystal", 18, Colors.teal),
-  Plant("Ember Blossom", 22, Colors.deepOrange),
+  Plant(3, "Frost Fern", 8, Duration(minutes: 1)),
+  Plant(4, "Mint Crystal", 10, Duration(minutes: 2)),
+  Plant(5, "Ember Blossom", 12, Duration(minutes: 3)),
 
   // LEGENDARY (6)
-  Plant("Phoenix Herb", 100, Colors.redAccent),
+  Plant(6, "Phoenix Herb", 25, Duration(minutes: 6)),
 ];
 
 class Recipe {
@@ -125,6 +125,20 @@ class GameState extends ChangeNotifier {
   List<DailyQuest> dailyQuests = [];
   String lastQuestDay = "";
 
+  void checkDailyQuests(String key) {
+    for (var q in dailyQuests) {
+      if (!q.done && q.recipeKey == key) {
+        q.done = true;
+        gold += q.reward;
+      }
+    }
+  
+    if (dailyQuests.isNotEmpty &&
+        dailyQuests.every((q) => q.done)) {
+      giveDailyChest();
+    }
+  }
+
   void generateDailyQuestsIfNeeded() {
     String today = DateTime.now().toIso8601String().substring(0, 10);
   
@@ -193,10 +207,11 @@ void sellPotion(int slot) {
   if (doubleGoldCharges > 0) {
     reward *= 2;
     doubleGoldCharges--;
-    ids.sort();
-    String Key = ids.join("_");
-    checkDailyQuests(key);
   }
+
+  ids.sort();
+  String key = ids.join("_");
+  checkDailyQuests(key);
 
   gold += reward;
   lastGoldGain = reward;
@@ -248,7 +263,7 @@ void sellPotion(int slot) {
   Future<void> load() async {
     prefs = await SharedPreferences.getInstance();
     gold = prefs.getInt("gold") ?? 0;
-    unlockedSlots = prefs.getInt("unlockedSlots") ?? 1;
+    unlockedSlots = prefs.getInt("unlockedSlots") ?? 3;
     speedLevel = prefs.getInt("speedLevel") ?? 0;
     brewSpeed = 1.0 + speedLevel * 0.25;
 
@@ -274,6 +289,8 @@ void sellPotion(int slot) {
 
     notifyListeners();
     generateDailyQuestsIfNeeded();
+
+  lastQuestDay = prefs.getString("lastQuestDay") ?? "";
   }
 
   Future<void> save() async {
@@ -304,6 +321,7 @@ void sellPotion(int slot) {
 
     await prefs.setStringList(
         "recipes", discovered.toList());
+    await prefs.setString("lastQuestDay", lastQuestDay);
   }
 
   void plant(int slot, int plantId) {
@@ -456,9 +474,7 @@ void sellPotion(int slot) {
         doubleGoldCharges += 3;
       }
     }
-    });
-  }
-
+  
   void checkBrew() {
     for (int i = 0; i < 3; i++) {
       final slot = brewSlots[i];
