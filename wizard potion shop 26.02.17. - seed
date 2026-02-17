@@ -8,7 +8,7 @@ void main() {
   runApp(const MyApp());
 }
 
-// --- MODELLEK ---
+
 
 class SeedResult {
   final int plantId;
@@ -23,9 +23,9 @@ class Seed {
   final int cost;
   final List<SeedResult> results;
   final Color color;
-  final Duration growTime; // Ez hiányzott a konstruktorból
+  final Duration growTime;
 
-  // Pontosan 6 paraméter, ebben a sorrendben:
+
   const Seed(this.id, this.name, this.cost, this.results, this.color, this.growTime);
 }
 
@@ -98,14 +98,14 @@ class Recipe {
   }
 }
 const List<Recipe> allRecipes = [
-  // COMMON
+
   Recipe([0, 0, 0], "Solar Tonic", Rarity.common),
   Recipe([1, 1, 1], "Lunar Draught", Rarity.common),
   Recipe([2, 2, 2], "Stellar Essence", Rarity.common),
   Recipe([0, 1, 2], "Balanced Brew", Rarity.common),
   Recipe([0, 0, 1], "Dawn Mixture", Rarity.common),
 
-  // RARE
+
   Recipe([0, 0, 3], "Glow Tonic", Rarity.rare),
   Recipe([1, 1, 4], "Moonmint Infusion", Rarity.rare),
   Recipe([2, 2, 5], "Ember Essence", Rarity.rare),
@@ -114,7 +114,7 @@ const List<Recipe> allRecipes = [
   Recipe([5, 5, 5], "Ember Core", Rarity.rare),
   Recipe([3, 4, 5], "Elemental Mix", Rarity.rare),
 
-  // LEGENDARY
+
   Recipe([6, 6, 6], "Elixir of Rebirth", Rarity.epic),
   Recipe([5, 6, 6], "Phoenix Blood", Rarity.epic),
   Recipe([4, 6, 6], "Celestial Flame", Rarity.epic),
@@ -242,7 +242,7 @@ class GameState extends ChangeNotifier {
     for (int i = 0; i < 3; i++) {
       dailyQuests.add(DailyQuest(
         recipeKey: possibleQuests[i].key,
-        reward: (i + 1) * 20, // Példa jutalom
+        reward: (i + 1) * 20,
       ));
     }
     save();
@@ -388,7 +388,7 @@ class GameState extends ChangeNotifier {
 
     lastQuestDay = prefs.getString("lastQuestDay") ?? "";
 
-    // daily questek betöltése
+
     List<String>? questJson = prefs.getStringList("dailyQuests");
     if (questJson != null) {
       dailyQuests = questJson
@@ -443,9 +443,11 @@ class GameState extends ChangeNotifier {
   }
 
   void plant(int slot, int seedId) {
-    if (seedStorage[seedId] <= 0) return;
+    if (seedId != 0 && seedStorage[seedId] <= 0) return;
 
-    seedStorage[seedId]--;
+    if (seedId != 0) {
+        seedStorage[seedId]--;
+    }
 
     garden[slot] = {
       "seedId": seedId,
@@ -458,28 +460,22 @@ class GameState extends ChangeNotifier {
 
 
 
-  void harvest(int slot) {
+  int? harvest(int slot) {
     final data = garden[slot];
-    if (data == null) return;
+    if (data == null) return null;
 
-    int seedId = data["seed"];
+    int seedId = data["seedId"];
     int start = data["start"];
 
     final seed = seeds[seedId];
 
-    // grow time = leglassabb lehetséges plant ideje
-    int maxGrow = 0;
-    for (var r in seed.results) {
-      int t = plants[r.plantId].growTime.inSeconds;
-      if (t > maxGrow) maxGrow = t;
-    }
-
     final elapsed = DateTime.now().difference(
         DateTime.fromMillisecondsSinceEpoch(start));
 
-    if (elapsed.inSeconds < maxGrow) return;
+    int growTime = seed.growTime.inSeconds;
 
-    // plant kisorsolása
+    if (elapsed.inSeconds < growTime) return null;
+
     double roll = Random().nextDouble();
     double sum = 0;
     int resultPlant = seed.results.first.plantId;
@@ -497,7 +493,10 @@ class GameState extends ChangeNotifier {
 
     save();
     notifyListeners();
+
+    return resultPlant;
   }
+
 
 
   Rarity getRarity(List<int> ids) {
@@ -571,9 +570,9 @@ class GameState extends ChangeNotifier {
     }
 
     final rarity = getRarity(ids);
-    double multiplier = 1.5; // Common: 50% profit
-    if (rarity == Rarity.rare) multiplier = 2.5; // Rare: 150% profit
-    if (rarity == Rarity.epic) multiplier = 5.0; // Legendary: 400% profit
+    double multiplier = 1.5;
+    if (rarity == Rarity.rare) multiplier = 2.5;
+    if (rarity == Rarity.epic) multiplier = 5.0;
 
     double reward = totalCost * multiplier;
 
@@ -591,11 +590,11 @@ class GameState extends ChangeNotifier {
     final r = Random().nextDouble();
 
     if (r < 0.5) {
-      storage[3] += 2; // rare plant példa
+      storage[3] += 2;
     } else if (r < 0.8) {
       instantBrewTokens++;
     } else if (r < 0.95) {
-      storage[6] += 1; // legendary plant
+      storage[6] += 1;
     } else {
       doubleGoldCharges += 3;
     }
@@ -1037,46 +1036,84 @@ class GardenScreen extends StatelessWidget {
             ),
           );
         } else {
-          // JAVÍTÁS: Itt már a seedId-t kérjük le
           int id = slot["seedId"] ?? 0;
           int start = slot["start"];
-          final s = seeds[id]; // A mag adatait használjuk, nem a növényét!
+          final s = seeds[id];
 
           final elapsed = DateTime.now().difference(
-              DateTime.fromMillisecondsSinceEpoch(start));
+            DateTime.fromMillisecondsSinceEpoch(start),
+          );
 
-          // JAVÍTÁS: A mag növekedési idejével számolunk
           double progress =
               elapsed.inMilliseconds / s.growTime.inMilliseconds;
+
+          int remainingSeconds = (s.growTime.inSeconds - elapsed.inSeconds)
+              .clamp(0, s.growTime.inSeconds);
 
           if (progress >= 1) {
             return SizedBox(
               width: 100,
               height: 100,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: s.color.withOpacity(0.6)),
-                onPressed: () => game.harvest(i),
-                child: Text("Harvest\n${s.name}",
-                    textAlign: TextAlign.center),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: s.color.withOpacity(0.6)),
+                onPressed: () {
+                  final plantId = game.harvest(i);
+                  if (plantId != null) {
+                    final plant = plants[plantId];
+
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text("Harvest Complete"),
+                        content: Text(
+                          '1x ${plant.name} is added to your inventory',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text("OK"),
+                          )
+                        ],
+                      ),
+                    );
+                  }
+                },
+                child: Text(
+                  "Harvest\n${s.name}",
+                  textAlign: TextAlign.center,
+                ),
               ),
             );
           }
+
+
 
           return SizedBox(
             width: 100,
             height: 100,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: s.color.withOpacity(0.5)),
+                border: Border.all(
+                  color: s.color.withOpacity(0.5),
+                ),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Growing", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                  Text(s.name,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: s.color, fontWeight: FontWeight.bold)
+                  const Text("Growing",
+                      style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(
+                    s.name,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: s.color, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    formatTime(remainingSeconds),
+                    style: const TextStyle(fontSize: 11),
                   ),
                   const SizedBox(height: 6),
                   Padding(
@@ -1086,6 +1123,7 @@ class GardenScreen extends StatelessWidget {
                       color: s.color,
                     ),
                   ),
+
                 ],
               ),
             ),
@@ -1108,23 +1146,32 @@ class GardenScreen extends StatelessWidget {
           children: List.generate(seeds.length, (i) {
             final s = seeds[i];
             return ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: s.color.withOpacity(0.2)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: s.color.withOpacity(0.2),
+              ),
               onPressed: () {
-                // Fontos: a GameState.plant metódusodnak seedId-t kell elmentenie!
                 game.plant(slot, i);
                 Navigator.pop(context);
               },
               child: Text(
                 "${s.name}\n${s.cost}g",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white, fontSize: 12),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                ),
               ),
             );
-          }).toList(),
+          }),
         ),
       ),
     );
   }
+}
+class RecipeBookScreen extends StatelessWidget {
+  final GameState game;
+
+  const RecipeBookScreen(this.game, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1132,7 +1179,8 @@ class GardenScreen extends StatelessWidget {
       appBar: AppBar(title: const Text("Potion Book")),
       body: ListView(
         children: allRecipes.map((recipe) {
-          final discovered = game.discovered.contains(recipe.key);
+          final discovered =
+          game.discovered.contains(recipe.key);
 
           return Card(
             margin: const EdgeInsets.symmetric(
@@ -1163,4 +1211,3 @@ class GardenScreen extends StatelessWidget {
     );
   }
 }
-
