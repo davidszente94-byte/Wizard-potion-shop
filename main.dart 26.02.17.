@@ -18,18 +18,18 @@ class Plant {
 }
 
 final List<Plant> plants = [
-  // COMMON (Active Play: 1m to 15m)
-  Plant(0, "Sunleaf", 5, Duration(minutes: 1)),
-  Plant(1, "Moonpetal", 20, Duration(minutes: 5)),
-  Plant(2, "Starroot", 50, Duration(minutes: 15)),
+  // COMMON (Active Play: 1m to 10m)
+  Plant(0, "Sunleaf", 0, Duration(seconds: 30)),
+  Plant(1, "Moonpetal", 0, Duration(minutes: 2)),
+  Plant(2, "Starroot", 10, Duration(minutes: 10)),
 
-  // RARE (Occasional Check-ins: 1h to 8h)
-  Plant(3, "Frost Fern", 200, Duration(hours: 1)),
-  Plant(4, "Mint Crystal", 750, Duration(hours: 4)),
-  Plant(5, "Ember Blossom", 2000, Duration(hours: 8)),
+  // RARE (Occasional Check-ins: 1h to 8h
+  Plant(3, "Frost Fern", 50, Duration(hours: 1)),
+  Plant(4, "Mint Crystal", 250, Duration(hours: 4)),
+  Plant(5, "Ember Blossom", 1000, Duration(hours: 8)),
 
   // LEGENDARY (The Daily Hook: 24h)
-  Plant(6, "Phoenix Herb", 10000, Duration(hours: 24)),
+  Plant(6, "Phoenix Herb", 5000, Duration(hours: 24)),
 ];
 
 class Recipe {
@@ -144,14 +144,14 @@ class GameState extends ChangeNotifier {
 
   int checkDailyQuests(String key) {
     int reward = 0;
-  
+
     for (var q in dailyQuests) {
       if (!q.done && q.recipeKey == key) {
         q.done = true;
         reward += q.reward;
       }
     }
-  
+
     if (dailyQuests.isNotEmpty &&
         dailyQuests.every((q) => q.done)) {
       giveDailyChest();
@@ -161,39 +161,27 @@ class GameState extends ChangeNotifier {
       save();
       notifyListeners();
     }
-  
+
     return reward;
   }
 
   void generateDailyQuestsIfNeeded() {
     String today = DateTime.now().toIso8601String().substring(0, 10);
-  
-    if (lastQuestDay == today && dailyQuests.isNotEmpty) {
-      return; // már vannak questek mára
-    }
-  
+    if (lastQuestDay == today && dailyQuests.isNotEmpty) return;
+
     lastQuestDay = today;
     dailyQuests.clear();
-  
-    final common = ["0_0_0", "1_1_1", "2_2_2"].toList();
-    final rare = ["3_3_3", "4_4_4", "5_5_5"].toList();
-  
-    common.shuffle();
-    rare.shuffle();
-  
-    dailyQuests.add(DailyQuest(
-      recipeKey: common[0],
-      reward: 10,
-    ));
-    dailyQuests.add(DailyQuest(
-      recipeKey: common[1],
-      reward: 12,
-    ));
-    dailyQuests.add(DailyQuest(
-      recipeKey: rare[0],
-      reward: 30,
-    ));
-  
+
+
+    List<Recipe> possibleQuests = List.from(allRecipes);
+    possibleQuests.shuffle();
+
+    for (int i = 0; i < 3; i++) {
+      dailyQuests.add(DailyQuest(
+        recipeKey: possibleQuests[i].key,
+        reward: (i + 1) * 20, // Példa jutalom
+      ));
+    }
     save();
     notifyListeners();
   }
@@ -214,46 +202,46 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-void useInstantBrew(int slot) {
-  final data = brewSlots[slot];
-  if (data == null) return;
-  if (instantBrewTokens <= 0) return;
+  void useInstantBrew(int slot) {
+    final data = brewSlots[slot];
+    if (data == null) return;
+    if (instantBrewTokens <= 0) return;
 
-  data["done"] = true;
-  instantBrewTokens--;
+    data["done"] = true;
+    instantBrewTokens--;
 
-  save();
-  notifyListeners();
-}
+    save();
+    notifyListeners();
+  }
 
 
   void sellPotion(int slot) {
     final data = brewSlots[slot];
     if (data == null) return;
-  
+
     List<int> ids = List<int>.from(data["plants"]);
     int baseReward = calculatePotionReward(ids);
-  
+
     if (doubleGoldCharges > 0) {
       baseReward *= 2;
       doubleGoldCharges--;
     }
-  
+
     ids.sort();
     String key = ids.join("_");
-  
+
     int questReward = checkDailyQuests(key);
-  
+
     gold += baseReward + questReward;
-  
+
     lastGoldGain = baseReward;
     lastQuestGain = questReward;
     showGoldAnimation = true;
-  
+
     brewSlots[slot] = null;
     save();
     notifyListeners();
-  
+
     Future.delayed(const Duration(milliseconds: 1000), () {
       showGoldAnimation = false;
       notifyListeners();
@@ -277,7 +265,7 @@ void useInstantBrew(int slot) {
 
   int nextGardenSlotCost() {
     if (unlockedSlots >= maxGardenSlots) return -1;
-  
+
     switch (unlockedSlots) {
       case 3: return 500;
       case 4: return 2500;
@@ -330,7 +318,7 @@ void useInstantBrew(int slot) {
         prefs.getStringList("recipes")?.toSet() ?? {};
 
     lastQuestDay = prefs.getString("lastQuestDay") ?? "";
-    
+
     // daily questek betöltése
     List<String>? questJson = prefs.getStringList("dailyQuests");
     if (questJson != null) {
@@ -379,7 +367,7 @@ void useInstantBrew(int slot) {
     List<String> questJson = dailyQuests
         .map((q) => jsonEncode(q.toJson()))
         .toList();
-    
+
     await prefs.setStringList("dailyQuests", questJson);
   }
 
@@ -422,13 +410,13 @@ void useInstantBrew(int slot) {
   Rarity getRarity(List<int> ids) {
     final sorted = List<int>.from(ids)..sort();
     final key = sorted.join("_");
-  
+
     for (final recipe in allRecipes) {
       if (recipe.key == key) {
         return recipe.rarity;
       }
     }
-  
+
     return Rarity.common;
   }
 
@@ -448,11 +436,11 @@ void useInstantBrew(int slot) {
     for (var id in ids) {
       totalGrowSeconds += plants[id].growTime.inSeconds;
     }
-  
+
     double baseSeconds = totalGrowSeconds * 0.5;
-    
+
     if (baseSeconds < 30) baseSeconds = 30;
-  
+
     int adjustedSeconds = (baseSeconds / brewSpeed).round();
     return Duration(seconds: adjustedSeconds);
   }
@@ -486,41 +474,41 @@ void useInstantBrew(int slot) {
     for (var id in ids) {
       totalCost += plants[id].cost;
     }
-  
+
     final rarity = getRarity(ids);
     double multiplier = 1.5; // Common: 50% profit
     if (rarity == Rarity.rare) multiplier = 2.5; // Rare: 150% profit
     if (rarity == Rarity.epic) multiplier = 5.0; // Legendary: 400% profit
-  
+
     double reward = totalCost * multiplier;
-  
+
     ids.sort();
     String key = ids.join("_");
     if (!discovered.contains(key)) {
       reward *= 2;
     }
-  
+
     return reward.round();
   }
 
 
-    void giveDailyChest() {
-      final r = Random().nextDouble();
-    
-      if (r < 0.5) {
-        storage[3] += 2; // rare plant példa
-      } else if (r < 0.8) {
-        instantBrewTokens++;
-      } else if (r < 0.95) {
-        storage[6] += 1; // legendary plant
-      } else {
-        doubleGoldCharges += 3;
-      }
+  void giveDailyChest() {
+    final r = Random().nextDouble();
 
-      save();
-      notifyListeners();
+    if (r < 0.5) {
+      storage[3] += 2; // rare plant példa
+    } else if (r < 0.8) {
+      instantBrewTokens++;
+    } else if (r < 0.95) {
+      storage[6] += 1; // legendary plant
+    } else {
+      doubleGoldCharges += 3;
     }
-  
+
+    save();
+    notifyListeners();
+  }
+
   void checkBrew() {
     for (int i = 0; i < 3; i++) {
       final slot = brewSlots[i];
@@ -567,6 +555,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     game.load().then((_) {
+      game.generateDailyQuestsIfNeeded();
       setState(() {
         loaded = true;
       });
@@ -584,98 +573,98 @@ class _MyAppState extends State<MyApp> {
     }
 
     return MaterialApp(
-        home: Builder(
-          builder: (context) =>
-              AnimatedBuilder(
-                animation: game,
-                builder: (_, __) =>
-                    Stack(
+      home: Builder(
+        builder: (context) => AnimatedBuilder(
+          animation: game,
+          builder: (_, __) => Stack(
+            children: [
+              Scaffold(
+                appBar: AppBar(
+                  title: Text("Gold: ${game.gold}"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => setState(() => screen = 0),
+                      child: const Text("Shop", style: TextStyle(color: Colors.white)),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() => screen = 1),
+                      child: const Text("Garden", style: TextStyle(color: Colors.white)),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.book),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => RecipeBookScreen(game),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                body: screen == 0
+                    ? PotionScreen(game)
+                    : GardenScreen(game),
+              ),
+              if (game.showGoldAnimation)
+                Positioned(
+                  top: 60,
+                  left: 20,
+                  child: TweenAnimationBuilder(
+                    tween: Tween<double>(begin: 0, end: -40),
+                    duration: const Duration(milliseconds: 900),
+                    builder: (_, double value, child) {
+                      return Transform.translate(
+                        offset: Offset(0, value),
+                        child: Opacity(
+                          opacity: (1 - (value.abs() / 40)).clamp(0.0, 1.0),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Scaffold(
-                          appBar: AppBar(
-                            title: Text("Gold: ${game.gold}"),
-                            actions: [
-                              TextButton(
-                                onPressed: () => setState(() => screen = 0),
-                                child: const Text("Shop", style: TextStyle(color: Colors.white)),
+                        Row(
+                          children: [
+                            const Icon(Icons.monetization_on,
+                                color: Colors.amber, size: 22),
+                            Text(
+                              "+${game.lastGoldGain}",
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
                               ),
-                              TextButton(
-                                onPressed: () => setState(() => screen = 1),
-                                child: const Text("Garden", style: TextStyle(color: Colors.white)),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.book),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => RecipeBookScreen(game),
-                                    ),
-                                  );
-                                },
+                            ),
+                          ],
+                        ),
+                        if (game.lastQuestGain > 0)
+                          Row(
+                            children: [
+                              const Icon(Icons.star,
+                                  color: Colors.lightBlue, size: 18),
+                              Text(
+                                "+${game.lastQuestGain} quest",
+                                style: const TextStyle(
+                                  color: Colors.lightBlue,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                             ],
                           ),
-                          body: screen == 0
-                              ? PotionScreen(game)
-                              : GardenScreen(game),
-                        ),
-
-        if (game.showGoldAnimation)
-          Positioned(
-            top: 60,
-            left: 20,
-            child: TweenAnimationBuilder(
-              tween: Tween<double>(begin: 0, end: -40),
-              duration: const Duration(milliseconds: 900),
-              builder: (_, double value, child) {
-                return Transform.translate(
-                  offset: Offset(0, value),
-                  child: Opacity(
-                    opacity: 1 - (value.abs() / 40),
-                    child: child,
-                  ),
-                );
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.monetization_on,
-                          color: Colors.amber, size: 22),
-                      Text(
-                        "+${game.lastGoldGain}",
-                        style: const TextStyle(
-                          color: Colors.amber,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (game.lastQuestGain > 0)
-                    Row(
-                      children: [
-                        const Icon(Icons.star,
-                            color: Colors.lightBlue, size: 18),
-                        Text(
-                          "+${game.lastQuestGain} quest",
-                          style: const TextStyle(
-                            color: Colors.lightBlue,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
                       ],
                     ),
-                ],
-              ),
-            ),
+                  ),
+                ),
+            ],
           ),
         ),
-        );
-    }
+      ),
+    );
+  }
 }
 
 class PotionScreen extends StatelessWidget {
@@ -700,6 +689,27 @@ class PotionScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
+          ],
+        ),
+
+        Column(
+          children: [
+            const Text("Daily Quests", style: TextStyle(fontWeight: FontWeight.bold)),
+            ...game.dailyQuests.map((q) {
+              final recipe = allRecipes.firstWhere((r) => r.key == q.recipeKey);
+              return Container(
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.symmetric(vertical: 2),
+                color: q.done ? Colors.green.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
+                child: Row(
+                  children: [
+                    Icon(q.done ? Icons.check_circle : Icons.circle_outlined, size: 16),
+                    const SizedBox(width: 8),
+                    Text("${recipe.name}: ${q.reward}g"),
+                  ],
+                ),
+              );
+            }).toList(),
           ],
         ),
         Expanded(
@@ -897,7 +907,7 @@ class GardenScreen extends StatelessWidget {
       children: List.generate(game.garden.length, (i) {
         if (i >= game.unlockedSlots) {
           int cost = game.nextGardenSlotCost();
-      
+
           return SizedBox(
             width: 100,
             height: 100,
@@ -914,9 +924,9 @@ class GardenScreen extends StatelessWidget {
             ),
           );
         }
-      
+
         final slot = game.garden[i];
-      
+
         if (slot == null) {
           return SizedBox(
             width: 100,
@@ -935,14 +945,14 @@ class GardenScreen extends StatelessWidget {
           int id = slot["plant"];
           int start = slot["start"];
           final p = plants[id];
-      
+
           final elapsed = DateTime.now().difference(
               DateTime.fromMillisecondsSinceEpoch(start));
-      
+
           double progress =
               elapsed.inMilliseconds /
                   p.growTime.inMilliseconds;
-      
+
           if (progress >= 1) {
             return SizedBox(
               width: 100,
@@ -954,7 +964,7 @@ class GardenScreen extends StatelessWidget {
               ),
             );
           }
-      
+
           return SizedBox(
             width: 100,
             height: 100,
@@ -1013,7 +1023,7 @@ class RecipeBookScreen extends StatelessWidget {
       body: ListView(
         children: allRecipes.map((recipe) {
           final discovered = game.discovered.contains(recipe.key);
-  
+
           return Card(
             margin: const EdgeInsets.symmetric(
                 horizontal: 12, vertical: 6),
