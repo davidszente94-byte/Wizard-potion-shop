@@ -1,0 +1,116 @@
+2026.02.17.
+
+Következő lépések:
+  - SHOP
+  - Mana system for brewing
+  - XP system
+  - Premium crystals in shop
+  - ADs
+
+
+Stratégia:
+	- Plants
+		○ 3 alap SEED, mindegyik ingyenes, ezzel játszhat a játékos az első napokban szabadon
+		○ Minden SEED ültetésénél van 10% esély hogy az elültetett SEEDből dupla adagot kapsz (üzi: jó eső)
+		○ 3 db rare SEED megszerzése legyen nehézkes, de első napokban elérhető
+	- Seeds
+		○ Seedeket mindig lehet venni, de a legendaryt csak freemium pénzért, vagy chestből
+		
+	- Potion
+		○ Amint beválasztottál 3 plantot, írja ki a mana költségét és idejét mielőtt BREW-ra kattintasz
+		○ Potionnál két lehetőség: Sell versus Storage (storage for another day when a daily quest comes? Or usage?)
+	- Daily quest
+		○ Sell 1 plant what they want (must be chosen from already discovered recipes)
+	- XP rendszer
+		○ Wizard XP and lvl to be introduced - skilltree and skill points for faster brew, more gold per sell, passive gold income
+		○ Wizard Mana for brewing! Max mana 50, 1 brew is 5 mana, rare brew 10 and legendary 50. Passive accumulation: 5 per hour, or level up = max mana
+	- UI üzenetek:
+		○ The order of the plants (1st, 2nd and 3rd place) inside a recipe of a potion does not matter for the result
+		○ Legendary seed can be obtained through daily quest chest
+	- Monetization strategy
+		○ 30 seconds ad
+			§ For mana recharge
+			§ For plant ready (common and rare, not for legendary)
+			§ For brewing ready (for common and rare, not for legendary)
+			§ For 50 gold
+		○ Freemium function
+			§ Buy 500 gold for 1 $
+			§ Buy 1200 gold for 2 $.... Let chatgpt decide 
+			§ Buy 5 legendary seed for 1 $
+Buy 15 legendary seed for 2 $
+
+Analytics, where do they log out, after how many minutes, how do they play the game
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Egyeb ötleket:
+Hangok és vizuális feedback
+Shop dekorációs fejlesztések
+
+Potion effect rendszer (buffok)
+Vizuális potion ikonok rarity szerint
+
+Potion book: Minden recepthez tartozna egy "Mastery" (Mesterfokozat) szint. Ha 10-szer megfőzöl egy Solar Tonic-ot, szintet lép, és onnantól több aranyat ér.
+Vizuális jutalom: A könyvben a szürke sziluettek helyett arany keretet kapnának a kimaxolt receptek.
+
+Mérj mindent: Tegyél bele Firebase Analytics-et (ingyen van). Látnod kell, hol lépnek ki a játékosok. Ha mindenki a 3. szinten hagyja abba, ott valami túl nehéz vagy unalmas.
+
+Push Notification
+
+1. A Potion Buff-rendszer (Használat vs. Eladás)
+Ha a játékos megissza a főzetet, ne csak egy unalmas statisztikát növeljünk, hanem adjunk neki olyat, ami vizuális vagy azonnali előnyt ad:
+A "Kertész" Buff: 10-20 percig minden elültetett növény fele annyi idő alatt nő meg. (Ez arra ösztönzi, hogy maradjon az appban és pörgesse a kertet).
+A "Szerencsés Kereskedő" Buff: A következő 3 eladott potion dupla aranyat ér. (Itt matekoznia kell: megéri-e "beáldozni" egy potiont a buffért, hogy a többin többet keressen?).
+A "Mágikus Szimat" Buff: Ideiglenesen felfedi a receptkönyvben egy még ismeretlen recept hozzávalóit (pl. látja a 3 növény sziluettjét).
+Az "Auto-Harvester" Buff: Egy kis mágikus kéz 15 percig automatikusan learatja a beérett növényeket, így nem kell figyelnie.
+
+
+1. A Varázsló Szintje (Wizard Level) és a Skill-fa
+Potionfőzés XP-t ad, szintet léphet a játékos és hagyd, hogy a játékos döntsön, miben akar fejlődni. Amikor szintet lép (Level Up), kaphat egy Skill Pontot, amit elkölthet:
+	Zöld Mágia (Botanika): Rövidíti a növények növekedési idejét.
+	Kék Mágia (Alkímia): Gyorsítja a főzési időt (Brew Time).
+	Arany Mágia (Kereskedelem): Több aranyat kap az eladott potionökért.
+	Lila Mágia (Felfedezés): Nagyobb esély ritka magok (Seed) találására aratáskor.
+2. A "Mana" mechanika (Energia rendszer)
+Ez a mobiljátékok egyik leggyakoribb (és legjövedelmezőbb) eleme.
+A varázslónak van egy Mana-csíkja. Bizonyos műveletek (pl. ritka növény elültetése vagy egy bonyolult főzet indítása) Manába kerülnek.
+A Mana idővel újratöltődik, de ha elfogy, a játékosnak várnia kell, vagy megnézhet egy reklámot, hogy azonnal kapjon egy kis energiát.
+Szintlépés bónusz: Ahogy nő a varázsló szintje, úgy nő a maximális Mana kapacitása is.
+
+3. Vizuális fejlődés (A "Hűha" faktor)
+A 100 aktív user megtartásához fontos, hogy a játékos lássa a fejlődést:
+Kezdő: Egy kopott köpenyben, egy egyszerű faasztalnál dolgozik.
+Haladó (Lv. 10): Már van egy díszesebb kalapja, a háttérben könyvespolcok és pislákoló gyertyák jelennek meg.
+Mester (Lv. 30): Csillogó aura veszi körül, az üstje arany színű, a kertje pedig egy lebegő szigeten van.
+
+4. Hogyan kapjon XP-t?
+Hogy ne legyen unalmas a darálás, többféle forrásból kaphat pontokat:
+Főzés: Minél ritkább a potion (Rare/Legendary), annál több XP.
+Felfedezés: Amikor egy új receptet talál meg (nem Mystic Elixir), az hatalmas XP löketet ad.
+Daily Quests: A napi küldetések teljesítése legyen a fő XP forrás (ez hozza vissza naponta).
+A szintlépéskor választhat egy új képességet, és teljesen feltöltődik a Manája – így még 10 percet bent marad a játékban, hogy kipróbálja az új erejét.
+
+1. A SkillFa Szerkezete (3 Fő Ág)
+Érdemes három külön irányba elindulni, hogy a játékos specializálódhasson.
+
+A. Az Élet Útja (Botanika / Kertészet)
+Ez az ág a nyersanyagokról szól. Azoknak való, akik nem akarnak sokat várni.
+	Lv 1: Termékeny Föld: Minden növény növekedési ideje 5%-kal csökken.
+	Lv 5: Bőséges Aratás: 10% esély, hogy aratáskor 1 helyett 2 növényt kapsz.
+	Lv 10: Mágikus Magok: 5% esély, hogy aratáskor kapsz egy Rare magot akkor is, ha Common növényt szedtél le.
+	Lv 20 (Ulti): Időhajlítás: Egy aktív képesség, ami azonnal készre növeszt egy véletlenszerű slotot a kertben (6 óra cooldown).
+
+B. Az Alkímia Útja (Főzés / Hatékonyság)
+Ez az ág a laborról és a főzetek értékéről szól.
+	Lv 1: Stabil Üst: A főzési idő (Brew Time) 5%-kal gyorsabb.
+	Lv 5: Aranyérzék: Minden eladott potion 10%-kal több aranyat ér.
+	Lv 10: Receptmester: A "Mystic Elixir" (generic) eladási ára 25%-kal nő (így a hibázás kevésbé fáj).
+	Lv 20 (Ulti): Dupla Főzet: 15% esély, hogy a főzés végén 1 helyett 2 potiont kapsz ugyanazokból a hozzávalókból.
+
+C. A Tudás Útja (Varázsló / Mana)
+Ez az ág a varázsló kényelmi funkcióiról és a Mana-menedzsmentről szól.
+	Lv 1: Meditáció: A Mana visszatöltési sebessége 10%-kal nő.
+	Lv 5: Tanulmányi Bónusz: Minden sikeres főzés után 10% extra XP-t kapsz.
+	Lv 10: Intuíció: A Potion Book-ban látszanak a le nem védett receptek hozzávalói közül 1-1 sziluett.
+Lv 20 (Ulti): Varázs-fókusz: 30 percig minden művelet Mana-költsége 0 (napi egyszeri használat).
