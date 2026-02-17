@@ -7,23 +7,62 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   runApp(const MyApp());
 }
-class Seed {
-  final int plantId;
-  final int cost;
 
-  const Seed(this.plantId, this.cost);
+// --- MODELLEK ---
+
+class SeedResult {
+  final int plantId;
+  final double chance;
+
+  const SeedResult(this.plantId, this.chance);
+}
+
+class Seed {
+  final int id;
+  final String name;
+  final int cost;
+  final List<SeedResult> results;
+  final Color color;
+  final Duration growTime; // Ez hiányzott a konstruktorból
+
+  // Pontosan 6 paraméter, ebben a sorrendben:
+  const Seed(this.id, this.name, this.cost, this.results, this.color, this.growTime);
 }
 
 final List<Seed> seeds = [
-  Seed(0, 5),
-  Seed(1, 10),
-  Seed(2, 25),
-  Seed(3, 100),
-  Seed(4, 300),
-  Seed(5, 800),
-  Seed(6, 3000),
-];
+  const Seed(0, "Wild Seed", 0, [
+    SeedResult(0, 0.85),
+    SeedResult(1, 0.14),
+    SeedResult(2, 0.01),
+  ], Colors.green, Duration(seconds: 30)),
 
+  const Seed(1, "Luminous Seed", 150, [
+    SeedResult(1, 0.45),
+    SeedResult(2, 0.40),
+    SeedResult(3, 0.14),
+    SeedResult(4, 0.01),
+  ], Colors.yellow, Duration(minutes: 5)),
+
+  const Seed(2, "Arcane Seed", 750, [
+    SeedResult(2, 0.20),
+    SeedResult(3, 0.45),
+    SeedResult(4, 0.30),
+    SeedResult(5, 0.05),
+  ], Colors.blue, Duration(minutes: 30)),
+
+  const Seed(3, "Ancient Seed", 3000, [
+    SeedResult(3, 0.15),
+    SeedResult(4, 0.35),
+    SeedResult(5, 0.45),
+    SeedResult(6, 0.05),
+  ], Colors.orange, Duration(hours: 2)),
+
+  const Seed(4, "Celestial Seed", 15000, [
+    SeedResult(4, 0.10),
+    SeedResult(5, 0.30),
+    SeedResult(6, 0.60),
+  ], Colors.purple, Duration(hours: 8)),
+];
 
 class Plant {
   final int id;
@@ -35,19 +74,16 @@ class Plant {
 }
 
 final List<Plant> plants = [
-  // COMMON (Active Play: 1m to 10m)
-  Plant(0, "Sunleaf", 0, Duration(seconds: 30)),
-  Plant(1, "Moonpetal", 0, Duration(minutes: 2)),
-  Plant(2, "Starroot", 10, Duration(minutes: 10)),
-
-  // RARE (Occasional Check-ins: 1h to 8h
-  Plant(3, "Frost Fern", 50, Duration(hours: 1)),
-  Plant(4, "Mint Crystal", 250, Duration(hours: 4)),
-  Plant(5, "Ember Blossom", 1000, Duration(hours: 8)),
-
-  // LEGENDARY (The Daily Hook: 24h)
-  Plant(6, "Phoenix Herb", 5000, Duration(hours: 24)),
+  const Plant(0, "Sunleaf", 10, Duration(seconds: 30)),
+  const Plant(1, "Moonpetal", 25, Duration(minutes: 2)),
+  const Plant(2, "Starroot", 60, Duration(minutes: 10)),
+  const Plant(3, "Frost Fern", 150, Duration(hours: 1)),
+  const Plant(4, "Mint Crystal", 400, Duration(hours: 4)),
+  const Plant(5, "Ember Blossom", 1200, Duration(hours: 8)),
+  const Plant(6, "Phoenix Herb", 5000, Duration(hours: 24)),
 ];
+
+enum Rarity { common, rare, epic }
 
 class Recipe {
   final List<int> ids;
@@ -115,9 +151,6 @@ String formatTime(int seconds) {
   return "$hours h";
 }
 
-
-enum Rarity { common, rare, epic }
-
 class DailyQuest {
   String recipeKey;
   int reward;
@@ -182,12 +215,13 @@ class GameState extends ChangeNotifier {
     return reward;
   }
 
-  void buySeed(int plantId) {
-    final seed = seeds[plantId];
+  void buySeed(int seedId) {
+    final seed = seeds[seedId];
     if (gold < seed.cost) return;
 
     gold -= seed.cost;
-    seedStorage[plantId]++;
+    seedStorage[seedId]++;
+
 
     save();
     notifyListeners();
@@ -408,13 +442,13 @@ class GameState extends ChangeNotifier {
     await prefs.setStringList("dailyQuests", questJson);
   }
 
-  void plant(int slot, int plantId) {
-    if (seedStorage[plantId] <= 0) return;
+  void plant(int slot, int seedId) {
+    if (seedStorage[seedId] <= 0) return;
 
-    seedStorage[plantId]--;
+    seedStorage[seedId]--;
 
     garden[slot] = {
-      "plant": plantId,
+      "seedId": seedId,
       "start": DateTime.now().millisecondsSinceEpoch
     };
 
@@ -423,24 +457,48 @@ class GameState extends ChangeNotifier {
   }
 
 
+
   void harvest(int slot) {
     final data = garden[slot];
     if (data == null) return;
 
-    int plantId = data["plant"];
+    int seedId = data["seed"];
     int start = data["start"];
 
-    final p = plants[plantId];
+    final seed = seeds[seedId];
+
+    // grow time = leglassabb lehetséges plant ideje
+    int maxGrow = 0;
+    for (var r in seed.results) {
+      int t = plants[r.plantId].growTime.inSeconds;
+      if (t > maxGrow) maxGrow = t;
+    }
+
     final elapsed = DateTime.now().difference(
         DateTime.fromMillisecondsSinceEpoch(start));
 
-    if (elapsed >= p.growTime) {
-      storage[plantId]++;
-      garden[slot] = null;
-      save();
-      notifyListeners();
+    if (elapsed.inSeconds < maxGrow) return;
+
+    // plant kisorsolása
+    double roll = Random().nextDouble();
+    double sum = 0;
+    int resultPlant = seed.results.first.plantId;
+
+    for (var r in seed.results) {
+      sum += r.chance;
+      if (roll <= sum) {
+        resultPlant = r.plantId;
+        break;
+      }
     }
+
+    storage[resultPlant]++;
+    garden[slot] = null;
+
+    save();
+    notifyListeners();
   }
+
 
   Rarity getRarity(List<int> ids) {
     final sorted = List<int>.from(ids)..sort();
@@ -463,6 +521,8 @@ class GameState extends ChangeNotifier {
         return Colors.blue;
       case Rarity.epic:
         return Colors.purple;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -953,9 +1013,7 @@ class GardenScreen extends StatelessWidget {
                   ? game.unlockGardenSlot
                   : null,
               child: Text(
-                cost < 0
-                    ? "MAX"
-                    : "Unlock\n${cost}g",
+                cost < 0 ? "MAX" : "Unlock\n${cost}g",
                 textAlign: TextAlign.center,
               ),
             ),
@@ -979,24 +1037,26 @@ class GardenScreen extends StatelessWidget {
             ),
           );
         } else {
-          int id = slot["plant"];
+          // JAVÍTÁS: Itt már a seedId-t kérjük le
+          int id = slot["seedId"] ?? 0;
           int start = slot["start"];
-          final p = plants[id];
+          final s = seeds[id]; // A mag adatait használjuk, nem a növényét!
 
           final elapsed = DateTime.now().difference(
               DateTime.fromMillisecondsSinceEpoch(start));
 
+          // JAVÍTÁS: A mag növekedési idejével számolunk
           double progress =
-              elapsed.inMilliseconds /
-                  p.growTime.inMilliseconds;
+              elapsed.inMilliseconds / s.growTime.inMilliseconds;
 
           if (progress >= 1) {
             return SizedBox(
               width: 100,
               height: 100,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: s.color.withOpacity(0.6)),
                 onPressed: () => game.harvest(i),
-                child: Text("Harvest\n${p.name}",
+                child: Text("Harvest\n${s.name}",
                     textAlign: TextAlign.center),
               ),
             );
@@ -1005,13 +1065,29 @@ class GardenScreen extends StatelessWidget {
           return SizedBox(
             width: 100,
             height: 100,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(p.name, textAlign: TextAlign.center),
-                const SizedBox(height: 6),
-                LinearProgressIndicator(value: progress),
-              ],
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: s.color.withOpacity(0.5)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text("Growing", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(s.name,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: s.color, fontWeight: FontWeight.bold)
+                  ),
+                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: LinearProgressIndicator(
+                      value: progress.clamp(0.0, 1.0),
+                      color: s.color,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -1021,40 +1097,33 @@ class GardenScreen extends StatelessWidget {
 
   Widget plantDialog(BuildContext context, int slot) {
     return AlertDialog(
-      title: const Text("Choose plant"),
+      title: const Text("Choose seed"),
       content: SizedBox(
         width: 300,
         height: 300,
         child: GridView.count(
           crossAxisCount: 2,
-          children: plants.map((p) {
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          children: List.generate(seeds.length, (i) {
+            final s = seeds[i];
             return ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: s.color.withOpacity(0.2)),
               onPressed: () {
-                game.buySeed(p.id);
+                // Fontos: a GameState.plant metódusodnak seedId-t kell elmentenie!
+                game.plant(slot, i);
                 Navigator.pop(context);
               },
               child: Text(
-                "${p.name} seed\n${seeds[p.id].cost}g",
+                "${s.name}\n${s.cost}g",
                 textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 12),
               ),
             );
-
           }).toList(),
         ),
       ),
     );
-  }
-}
-
-class RecipeBookScreen extends StatelessWidget {
-  final GameState game;
-
-  const RecipeBookScreen(this.game, {super.key});
-
-  List<List<int>> _parseRecipes(Set<String> discovered) {
-    return discovered.map((key) {
-      return key.split("_").map(int.parse).toList();
-    }).toList();
   }
 
   @override
@@ -1094,3 +1163,4 @@ class RecipeBookScreen extends StatelessWidget {
     );
   }
 }
+
