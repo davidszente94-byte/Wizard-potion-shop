@@ -200,6 +200,11 @@ class GameState extends ChangeNotifier {
   int gold = 0;
   int crystals = 0;
   int speedLevel = 0;
+  int level = 1;
+  int xp = 0;
+  int xpToNextLevel() {
+  return 50 + (level - 1) * 25;
+  }
   int instantBrewTokens = 0;
   int doubleGoldCharges = 0;
   double brewSpeed = 1.0;
@@ -232,6 +237,37 @@ class GameState extends ChangeNotifier {
     }
 
     return reward;
+  }
+
+  void addXp(int amount) {
+    xp += amount;
+  
+    while (xp >= xpToNextLevel()) {
+      xp -= xpToNextLevel();
+      level++;
+      onLevelUp();
+    }
+  
+    save();
+    notifyListeners();
+  }
+
+  void onLevelUp() {
+    crystals += 5;
+    instantBrewTokens += 1;
+  }
+
+  int calculatePotionXp(List<int> ids) {
+    final rarity = getRarity(ids);
+  
+    switch (rarity) {
+      case Rarity.common:
+        return 5;
+      case Rarity.rare:
+        return 15;
+      case Rarity.epic:
+        return 40;
+    }
   }
 
   void initShop() {
@@ -370,6 +406,9 @@ class GameState extends ChangeNotifier {
 
     gold += baseReward + questReward;
 
+    int xpGain = calculatePotionXp(ids);
+    addXp(xpGain);
+
     lastGoldGain = baseReward;
     lastQuestGain = questReward;
     showGoldAnimation = true;
@@ -435,6 +474,8 @@ class GameState extends ChangeNotifier {
     crystals = prefs.getInt("crystals") ?? 0;
     unlockedSlots = prefs.getInt("unlockedSlots") ?? 3;
     speedLevel = prefs.getInt("speedLevel") ?? 0;
+    level = prefs.getInt("level") ?? 1;
+    xp = prefs.getInt("xp") ?? 0;
     brewSpeed = 1.0 + speedLevel * 0.25;
 
     storage =
@@ -481,6 +522,8 @@ class GameState extends ChangeNotifier {
     await prefs.setInt("crystals", crystals);
     await prefs.setInt("unlockedSlots", unlockedSlots);
     await prefs.setInt("speedLevel", speedLevel);
+    await prefs.setInt("level", level);
+    await prefs.setInt("xp", xp);
 
     for (int i = 0; i < 10; i++) {
       await prefs.setInt("storage_$i", storage[i]);
@@ -749,15 +792,28 @@ class _MyAppState extends State<MyApp> {
             children: [
               Scaffold(
                 appBar: AppBar(
-                  title: Text("Gold: ${game.gold}   Crystals: ${game.crystals}"),
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Lv ${game.level}   Gold: ${game.gold}   Crystals: ${game.crystals}"),
+                      Text(
+                        "XP: ${game.xp}/${game.xpToNextLevel()}",
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => setState(() => screen = 0),
-                      child: const Text("Shop", style: TextStyle(color: Colors.white)),
+                      child: const Text("Brew", style: TextStyle(color: Colors.white)),
                     ),
                     TextButton(
                       onPressed: () => setState(() => screen = 1),
                       child: const Text("Garden", style: TextStyle(color: Colors.white)),
+                    ),
+                    TextButton(
+                      onPressed: () => setState(() => screen = 2),
+                      child: const Text("Shop", style: TextStyle(color: Colors.white)),
                     ),
                     IconButton(
                       icon: const Icon(Icons.book),
@@ -774,7 +830,9 @@ class _MyAppState extends State<MyApp> {
                 ),
                 body: screen == 0
                     ? PotionScreen(game)
-                    : GardenScreen(game),
+                    : screen == 1
+                        ? GardenScreen(game)
+                        : ShopScreen(game),
               ),
               if (game.showGoldAnimation)
                 Positioned(
