@@ -1174,23 +1174,56 @@ class InventoryPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.all(12),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListView(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(8),
-            child: Text("Seeds",
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold)),
+          // --- MAGOK (SEEDS) SZEKCIÓ ---
+          const ListTile(
+            leading: Icon(Icons.grass, color: Colors.brown), // 'grass' biztosan létezik
+            title: Text("Seeds", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
-          ...plants.map((p) {
+          const Divider(height: 1),
+          // A globális 'seeds' listát használjuk a magokhoz
+          ...seeds.map((seed) {
+            final amount = game.seedStorage[seed.id];
+            // Csak akkor mutatjuk, ha van belőle, vagy ha ez a Wild Seed (id: 0)
+            if (amount <= 0 && seed.id != 0) return const SizedBox.shrink();
+
             return ListTile(
-              title: Text("${p.name} seed"),
-              trailing: Text("${game.seedStorage[p.id]}"),
+              dense: true,
+              leading: Icon(Icons.circle, color: seed.color, size: 12),
+              title: Text(seed.name),
+              trailing: Text("$amount", style: const TextStyle(fontWeight: FontWeight.bold)),
             );
           }),
-          const Divider(),
 
+          const SizedBox(height: 10),
+          const Divider(thickness: 2),
+
+          // --- LEARATOTT NÖVÉNYEK (PLANTS) SZEKCIÓ ---
+          const ListTile(
+            leading: Icon(Icons.inventory_2, color: Colors.green),
+            title: Text("Plants", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          const Divider(height: 1),
+          // A globális 'plants' listát használjuk a raktárhoz (storage)
+          ...plants.map((plant) {
+            final amount = game.storage[plant.id];
+
+            return ListTile(
+              dense: true,
+              leading: const Icon(Icons.local_florist, color: Colors.green, size: 18), // Javítva: kisbetűs 'l'
+              title: Text(plant.name),
+              trailing: Text(
+                "$amount",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green,
+                ),
+              ),
+            );
+          }),
         ],
       ),
     );
