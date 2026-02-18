@@ -1,3 +1,15 @@
+26.02.18.
+
+flutter,dart expert developer és android app piacon expert market és user behaviour analyst vagy. a kódom átnézése alapján mondd el, van-e értelme és ha igen hogyan
+(ha nincs értelme mondd meg az igazat, ne akarj a kedvembe járni):
+1. potion rendszer átterverzése, nem csak eladni lehet őket hanem megtartani (store) vagy elhasználni (use). Use alapján minden potion a rarity szintjéhez tartozó buffot ad:
+(pl. 2x gold 1 órán át). ezáltal lenne egy shop bevezetés is, ahol potiont lehetne venni is (goldért, vagy a ritkábbakat prémium crystalokért, ami igazi pénzért megy).
+2. a potion még nem a végállomás lenne (seed-plant-potion), hanem utána még 1 lépcső bevezetése? adj ötletet mi lenne az.
+
+
+flutter, dart expert developer vagy. a fájlom átnézése után útmutatót adsz pontosan mit kell megváltoztatnom, ha SHOP-ot akarok a játékba bevezetni.
+SHOP-ban elérhető: Seedek, plantok, potionok, premium crystalok (in-app purchase). és még mi? adj ötletet. 
+
 2026.02.17.
 
 Következő lépések:
