@@ -1,3 +1,60 @@
+actions: [
+  TextButton(
+    onPressed: () => setState(() => screen = 0),
+    child: const Text("Brew", style: TextStyle(color: Colors.white)),
+  ),
+  TextButton(
+    onPressed: () => setState(() => screen = 1),
+    child: const Text("Garden", style: TextStyle(color: Colors.white)),
+  ),
+  TextButton(
+    onPressed: () => setState(() => screen = 2),
+    child: const Text("Shop", style: TextStyle(color: Colors.white)),
+  ),
+  IconButton(
+    icon: const Icon(Icons.book),
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RecipeBookScreen(game),
+        ),
+      );
+    },
+  ),
+],
+
+
+
+
+
+
+body: screen == 0
+    ? PotionScreen(game)
+    : screen == 1
+        ? GardenScreen(game)
+        : ShopScreen(game),
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 enum ShopCurrency { gold, crystal }
 
 class ShopItem {
