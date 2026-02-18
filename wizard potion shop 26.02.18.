@@ -154,18 +154,24 @@ String formatTime(int seconds) {
 enum ShopCurrency { gold, crystal }
 
 class ShopItem {
+  final String id;
   final String name;
-  final ShopCurrency currency;
+  final String description;
   final int price;
+  final ShopCurrency currency;
   final void Function(GameState) onBuy;
 
-  const ShopItem({
+  ShopItem({
+    required this.id,
     required this.name,
-    required this.currency,
+    required this.description,
     required this.price,
+    required this.currency,
     required this.onBuy,
   });
 }
+
+
 
 
 class DailyQuest {
@@ -197,13 +203,14 @@ class DailyQuest {
 }
 
 class GameState extends ChangeNotifier {
+  List<ShopItem> shopItems = [];
   int gold = 0;
   int crystals = 0;
   int speedLevel = 0;
   int level = 1;
   int xp = 0;
   int xpToNextLevel() {
-  return 50 + (level - 1) * 25;
+    return 50 + (level - 1) * 25;
   }
   int instantBrewTokens = 0;
   int doubleGoldCharges = 0;
@@ -212,9 +219,11 @@ class GameState extends ChangeNotifier {
   int lastGoldGain = 0;
   int lastQuestGain = 0;
   bool showGoldAnimation = false;
-  List<ShopItem> shopItems = [];
   List<DailyQuest> dailyQuests = [];
   String lastQuestDay = "";
+
+
+
 
   int checkDailyQuests(String key) {
     int reward = 0;
@@ -241,13 +250,13 @@ class GameState extends ChangeNotifier {
 
   void addXp(int amount) {
     xp += amount;
-  
+
     while (xp >= xpToNextLevel()) {
       xp -= xpToNextLevel();
       level++;
       onLevelUp();
     }
-  
+
     save();
     notifyListeners();
   }
@@ -259,7 +268,7 @@ class GameState extends ChangeNotifier {
 
   int calculatePotionXp(List<int> ids) {
     final rarity = getRarity(ids);
-  
+
     switch (rarity) {
       case Rarity.common:
         return 5;
@@ -272,43 +281,92 @@ class GameState extends ChangeNotifier {
 
   void initShop() {
     shopItems = [
-      // Gold items
+
+      // =========================
+      // GOLD ITEMS
+      // =========================
+
       ShopItem(
-        name: "Wild Seed x5",
+        id: "seed_pack_basic",
+        name: "Seed Package",
+        description: "5 random common seeds",
+        price: 200,
         currency: ShopCurrency.gold,
-        price: 50,
         onBuy: (g) {
-          g.seedStorage[0] += 5;
+          for (int i = 0; i < 5; i++) {
+            int randomSeed = Random().nextInt(3) + 1;
+            g.seedStorage[randomSeed]++;
+          }
         },
       ),
+
       ShopItem(
-        name: "Instant Brew",
+        id: "plant_pack",
+        name: "Plant Package",
+        description: "3 random plants",
+        price: 350,
         currency: ShopCurrency.gold,
-        price: 100,
+        onBuy: (g) {
+          for (int i = 0; i < 3; i++) {
+            int randomPlant = Random().nextInt(plants.length);
+            g.storage[randomPlant]++;
+          }
+        },
+      ),
+
+      ShopItem(
+        id: "instant_token",
+        name: "Instant Brew Token",
+        description: "Skip brew time instantly",
+        price: 150,
+        currency: ShopCurrency.gold,
         onBuy: (g) {
           g.instantBrewTokens++;
         },
       ),
-  
-      // Crystal items
+
+      // =========================
+      // CRYSTAL ITEMS
+      // =========================
+
       ShopItem(
-        name: "Rare Potion",
-        currency: ShopCurrency.crystal,
+        id: "rare_seed_pack",
+        name: "Rare Seed Pack",
+        description: "3 high tier seeds",
         price: 25,
+        currency: ShopCurrency.crystal,
         onBuy: (g) {
-          g.doubleGoldCharges += 3;
+          g.seedStorage[3]++;
+          g.seedStorage[4]++;
+          g.seedStorage[2]++;
         },
       ),
+
       ShopItem(
-        name: "Epic Potion",
+        id: "xp_boost",
+        name: "XP Boost (1h)",
+        description: "Double XP for 1 hour",
+        price: 40,
         currency: ShopCurrency.crystal,
-        price: 75,
         onBuy: (g) {
-          g.doubleGoldCharges += 10;
+          g.doubleGoldCharges += 5; // átmeneti placeholder mechanika
+        },
+      ),
+
+      ShopItem(
+        id: "starter_bundle",
+        name: "Starter Bundle",
+        description: "5 Tokens + 2 Rare Seeds",
+        price: 75,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          g.instantBrewTokens += 5;
+          g.seedStorage[3] += 2;
         },
       ),
     ];
   }
+
 
   void buySeed(int seedId) {
     final seed = seeds[seedId];
@@ -330,9 +388,9 @@ class GameState extends ChangeNotifier {
       if (crystals < item.price) return;
       crystals -= item.price;
     }
-  
+
     item.onBuy(this);
-  
+
     save();
     notifyListeners();
   }
@@ -381,6 +439,8 @@ class GameState extends ChangeNotifier {
 
     data["done"] = true;
     instantBrewTokens--;
+
+    lastGoldGain = 0;
 
     save();
     notifyListeners();
@@ -564,7 +624,7 @@ class GameState extends ChangeNotifier {
     if (seedId != 0 && seedStorage[seedId] <= 0) return;
 
     if (seedId != 0) {
-        seedStorage[seedId]--;
+      seedStorage[seedId]--;
     }
 
     garden[slot] = {
@@ -793,15 +853,16 @@ class _MyAppState extends State<MyApp> {
               Scaffold(
                 appBar: AppBar(
                   title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Lv ${game.level}   Gold: ${game.gold}   Crystals: ${game.crystals}"),
-                      Text(
-                        "XP: ${game.xp}/${game.xpToNextLevel()}",
-                        style: const TextStyle(fontSize: 12),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Lv ${game.level}   Gold: ${game.gold}   Crystals: ${game.crystals}"),
+                          Text(
+                            "Instant Brew Tokens: ${game.instantBrewTokens}",
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+
                   actions: [
                     TextButton(
                       onPressed: () => setState(() => screen = 0),
@@ -831,8 +892,8 @@ class _MyAppState extends State<MyApp> {
                 body: screen == 0
                     ? PotionScreen(game)
                     : screen == 1
-                        ? GardenScreen(game)
-                        : ShopScreen(game),
+                    ? GardenScreen(game)
+                    : ShopScreen(game),
               ),
               if (game.showGoldAnimation)
                 Positioned(
@@ -1014,7 +1075,20 @@ class PotionScreen extends StatelessWidget {
                             return Text(formatTime(remaining));
                           },
                         ),
-                      ] else
+                        const SizedBox(height: 6),
+                        ElevatedButton(
+                          onPressed: game.instantBrewTokens > 0
+                              ? () => game.useInstantBrew(i)
+                              : null,
+                          child: Text(
+                            game.instantBrewTokens > 0
+                                ? "Use Token (${game.instantBrewTokens})"
+                                : "No Tokens",
+                          ),
+                        ),
+                      ]
+
+                      else
                         ...[
                           const SizedBox(height: 6),
                           Text(
@@ -1352,21 +1426,49 @@ class ShopScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: game.shopItems.map((item) {
-        final isGold = item.currency == ShopCurrency.gold;
 
-        return ListTile(
-          title: Text(item.name),
-          subtitle: Text(
-            "${item.price} ${isGold ? "Gold" : "Crystals"}",
+    final goldItems =
+    game.shopItems.where((i) => i.currency == ShopCurrency.gold).toList();
+
+    final crystalItems =
+    game.shopItems.where((i) => i.currency == ShopCurrency.crystal).toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+
+        const Text("Gold Shop",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+        const SizedBox(height: 8),
+
+        ...goldItems.map((item) => shopTile(item)),
+
+        const SizedBox(height: 20),
+
+        const Text("Crystal Shop",
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+        const SizedBox(height: 8),
+
+        ...crystalItems.map((item) => shopTile(item)),
+      ],
+    );
+  }
+
+  Widget shopTile(ShopItem item) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      child: ListTile(
+        title: Text(item.name),
+        subtitle: Text(item.description),
+        trailing: ElevatedButton(
+          onPressed: () => game.buyShopItem(item),
+          child: Text(
+            "${item.price} ${item.currency == ShopCurrency.gold ? "Gold" : "Crystals"}",
           ),
-          trailing: ElevatedButton(
-            onPressed: () => game.buyShopItem(item),
-            child: const Text("BUY"),
-          ),
-        );
-      }).toList(),
+        ),
+      ),
     );
   }
 }
