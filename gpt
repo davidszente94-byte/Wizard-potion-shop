@@ -1,3 +1,116 @@
+int level = 1;
+int xp = 0;
+
+
+
+
+int xpToNextLevel() {
+  return 50 + (level - 1) * 25;
+}
+
+
+void addXp(int amount) {
+  xp += amount;
+
+  while (xp >= xpToNextLevel()) {
+    xp -= xpToNextLevel();
+    level++;
+    onLevelUp();
+  }
+
+  save();
+  notifyListeners();
+}
+
+
+
+
+void onLevelUp() {
+  crystals += 5; // egyszerű jutalom
+}
+
+
+
+int calculatePotionXp(List<int> ids) {
+  final rarity = getRarity(ids);
+
+  switch (rarity) {
+    case Rarity.common:
+      return 5;
+    case Rarity.rare:
+      return 15;
+    case Rarity.epic:
+      return 40;
+  }
+}
+
+
+
+
+
+int xpGain = calculatePotionXp(ids);
+addXp(xpGain);
+
+
+
+
+gold += baseReward + questReward;
+
+int xpGain = calculatePotionXp(ids);
+addXp(xpGain);
+
+lastGoldGain = baseReward;
+
+
+
+
+level = prefs.getInt("level") ?? 1;
+xp = prefs.getInt("xp") ?? 0;
+
+
+
+
+
+await prefs.setInt("level", level);
+await prefs.setInt("xp", xp);
+
+
+
+
+
+title: Text("Gold: ${game.gold}   Crystals: ${game.crystals}"),
+
+
+
+
+
+title: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Text("Lv ${game.level}   Gold: ${game.gold}   Crystals: ${game.crystals}"),
+    Text(
+      "XP: ${game.xp}/${game.xpToNextLevel()}",
+      style: const TextStyle(fontSize: 12),
+    ),
+  ],
+),
+
+
+
+
+
+instantBrewTokens += 1;
+
+
+
+
+
+
+
+
+
+
+
 actions: [
   TextButton(
     onPressed: () => setState(() => screen = 0),
