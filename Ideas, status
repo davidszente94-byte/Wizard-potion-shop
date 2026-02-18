@@ -6,6 +6,45 @@ flutter,dart expert developer és android app piacon expert market és user beha
 (pl. 2x gold 1 órán át). ezáltal lenne egy shop bevezetés is, ahol potiont lehetne venni is (goldért, vagy a ritkábbakat prémium crystalokért, ami igazi pénzért megy).
 2. a potion még nem a végállomás lenne (seed-plant-potion), hanem utána még 1 lépcső bevezetése? adj ötletet mi lenne az.
 
+Ajánlott buff-rendszer (egyszerű, piac-kompatibilis)
+Common potion
++50% gold
+15 perc
+Rare potion
+2× gold
+30 perc
+Epic potion
+3× gold
+60 perc
+
+Soft currency shop (gold)
+common potion
+random seed pack
+instant brew token
+Hard currency shop (crystal)
+rare potion
+epic potion
+big resource pack
+
+A) Potion → Elixir (fusion rendszer)
+3 potion = 1 elixir
+Elixir:
+permanent upgrade
+pl. +5% global gold
+
+B) Potion → Contract / Order rendszer
+Potionokat nem eladod, hanem:
+NPC megrendeli:
+“2× Lunar Draught”
+“1× Phoenix Blood”
+Gold, ritka seed, crystal jutalom
+
+C) Potion → Enchantment (épület buff)
+Potionnal buffolod:
+garden
+brew slot
+storage
+
 
 flutter, dart expert developer vagy. a fájlom átnézése után útmutatót adsz pontosan mit kell megváltoztatnom, ha SHOP-ot akarok a játékba bevezetni.
 SHOP-ban elérhető: Seedek, plantok, potionok, premium crystalok (in-app purchase). és még mi? adj ötletet. 
