@@ -8,6 +8,13 @@ void main() {
   runApp(const MyApp());
 }
 
+class MagicColors {
+  static const Color background = Color(0xFF0F0C29); // Mély éjkék
+  static const Color surface = Color(0xFF302B63);    // Misztikus lila
+  static const Color accent = Color(0xFFFFD700);     // Arany
+  static const Color crystal = Color(0xFF00D2FF);    // Kristály kék
+  static const Color textLight = Color(0xFFE0E0E0);
+}
 
 
 class SeedResult {
@@ -845,6 +852,19 @@ class _MyAppState extends State<MyApp> {
     }
 
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: MagicColors.background,
+          cardTheme: CardThemeData(
+          color: MagicColors.surface.withOpacity(0.6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 8,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+      ),
       home: Builder(
         builder: (context) => AnimatedBuilder(
           animation: game,
@@ -962,163 +982,182 @@ class PotionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Speed Lv. ${game.speedLevel}"),
-            ElevatedButton(
-              onPressed: game.gold >= game.speedUpgradeCost()
-                  ? game.upgradeSpeed
-                  : null,
-              child: Text(
-                "Upgrade (${game.speedUpgradeCost()}g)",
-              ),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [MagicColors.background, MagicColors.surface, Color(0xFF24243E)],
+        ),
+      ),
+      child: Row(
+        children: [
+          // Bal oldali panel: Küldetések és fejlesztés
+          Container(
+            width: 200,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                _buildModernUpgradeCard(),
+                const SizedBox(height: 20),
+                const Text("DAILY SCROLLS",
+                    style: TextStyle(color: MagicColors.accent, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                const Divider(color: MagicColors.accent),
+                Expanded(child: _buildQuestList()),
+              ],
             ),
-            const SizedBox(height: 10),
-          ],
-        ),
-
-        Column(
-          children: [
-            const Text("Daily Quests", style: TextStyle(fontWeight: FontWeight.bold)),
-            ...game.dailyQuests.map((q) {
-              final recipe = allRecipes.firstWhere((r) => r.key == q.recipeKey);
-              return Container(
-                padding: const EdgeInsets.all(8),
-                margin: const EdgeInsets.symmetric(vertical: 2),
-                color: q.done ? Colors.green.withOpacity(0.2) : Colors.blue.withOpacity(0.1),
-                child: Row(
-                  children: [
-                    Icon(q.done ? Icons.check_circle : Icons.circle_outlined, size: 16),
-                    const SizedBox(width: 8),
-                    Text("${recipe.name}: ${q.reward}g"),
-                  ],
-                ),
-              );
-            }).toList(),
-          ],
-        ),
-        Expanded(
-          flex: 2,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: List.generate(3, (i) {
-              if (i >= game.unlockedSlots) {
-                return ElevatedButton(
-                  onPressed: game.gold >= game.nextGardenSlotCost()
-                      ? () => game.unlockGardenSlot()
-                      : null,
-                  child: Text(
-                    "Unlock\n${game.nextGardenSlotCost()}g",
-                    textAlign: TextAlign.center,
-                  ),
-                );
-              }
-
-              final slot = game.brewSlots[i];
-
-
-              if (slot == null) {
-                return ElevatedButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => brewDialog(context, i),
-                    );
-                  },
-                  child: const Text("Brew"),
-                );
-              } else {
-                int start = slot["start"];
-                int total = slot["time"];
-                bool done = slot["done"] == true;
-
-                int elapsed = DateTime
-                    .now()
-                    .difference(
-                    DateTime.fromMillisecondsSinceEpoch(start))
-                    .inSeconds;
-
-                double progress =
-                (elapsed / total).clamp(0.0, 1.0);
-
-                List<int> ids =
-                List<int>.from(slot["plants"]);
-                String name = getPotionName(ids);
-                final rarity = game.getRarity(ids);
-
-                return SizedBox(
-                  width: 140,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedScale(
-                        scale: done ? 1.2 : 1.0,
-                        duration: const Duration(milliseconds: 400),
-                        child: Icon(
-                          Icons.local_drink,
-                          size: 80,
-                          color: done
-                              ? game.rarityColor(rarity)
-                              : Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (!done) ...[
-                        LinearProgressIndicator(value: progress),
-                        const SizedBox(height: 6),
-                        Builder(
-                          builder: (_) {
-                            int remaining = (total - elapsed).clamp(0, total);
-                            return Text(formatTime(remaining));
-                          },
-                        ),
-                        const SizedBox(height: 6),
-                        ElevatedButton(
-                          onPressed: game.instantBrewTokens > 0
-                              ? () => game.useInstantBrew(i)
-                              : null,
-                          child: Text(
-                            game.instantBrewTokens > 0
-                                ? "Use Token (${game.instantBrewTokens})"
-                                : "No Tokens",
-                          ),
-                        ),
-                      ]
-
-                      else
-                        ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            name,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          ElevatedButton(
-                            onPressed: () => game.sellPotion(i),
-                            child: Text(
-                              "SELL for ${game.calculatePotionReward(ids)}g",
-                            ),
-                          ),
-                        ],
-                    ],
-                  ),
-                );
-              }
-            }),
           ),
+
+          // Középső rész: Az üstök (Brewing Slots)
+          Expanded(
+            flex: 3,
+            child: Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text("ALCHEMY POTS",
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(blurRadius: 10, color: MagicColors.crystal)])),
+                ),
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(3, (i) => _buildBrewingPot(context, i)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Jobb oldali panel: Raktár (Inventory)
+          SizedBox(width: 250, child: InventoryPanel(game)),
+        ],
+      ),
+    );
+  }
+
+  // Ezt a metódust használd a PotionPot megjelenítéséhez
+  Widget _buildBrewingPot(BuildContext context, int i) {
+    final slot = game.brewSlots[i];
+    bool isUnlocked = i < game.unlockedSlots;
+
+    return Container(
+      width: 160,
+      margin: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: isUnlocked ? MagicColors.crystal.withOpacity(0.3) : Colors.grey),
+      ),
+      child: isUnlocked ? _potContent(context, i, slot) : _lockedPot(),
+    );
+  }
+
+  Widget _potContent(BuildContext context, int i, dynamic slot) {
+    if (slot == null) {
+      return InkWell(
+        onTap: () => showDialog(context: context, builder: (_) => brewDialog(context, i)),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline, size: 50, color: MagicColors.crystal),
+            SizedBox(height: 10),
+            Text("START BREW", style: TextStyle(color: MagicColors.crystal, fontWeight: FontWeight.bold)),
+          ],
         ),
-        Expanded(
-          child: InventoryPanel(game),
-        )
+      );
+    }
+
+    // Ha épp fő valami
+    bool done = slot["done"] == true;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            // Csillogó effekt az ikon mögött
+            if (done) Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: MagicColors.accent.withOpacity(0.5), blurRadius: 20, spreadRadius: 5)])),
+            Icon(Icons.local_fire_department, size: 70, color: done ? MagicColors.accent : Colors.orangeAccent),
+          ],
+        ),
+        const SizedBox(height: 15),
+        if (!done) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: LinearProgressIndicator(
+              value: _calculateProgress(slot),
+              backgroundColor: Colors.white10,
+              color: MagicColors.crystal,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.white10),
+            onPressed: game.instantBrewTokens > 0 ? () => game.useInstantBrew(i) : null,
+            child: Text("⚡ ${game.instantBrewTokens}", style: const TextStyle(color: MagicColors.crystal)),
+          ),
+        ] else
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: MagicColors.accent, foregroundColor: Colors.black),
+            onPressed: () => game.sellPotion(i),
+            child: const Text("COLLECT", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
       ],
     );
   }
+
+  Widget _lockedPot() {
+    return const Center(child: Icon(Icons.lock_outline, color: Colors.white24, size: 40));
+  }
+
+  double _calculateProgress(dynamic slot) {
+    int start = slot["start"];
+    int total = slot["time"];
+    int elapsed = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(start)).inSeconds;
+    return (elapsed / total).clamp(0.0, 1.0);
+  }
+
+  // A korábbi upgrade gombodat tedd egy szebb Card-ba
+  Widget _buildModernUpgradeCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            const Text("SPEED", style: TextStyle(fontSize: 12, color: Colors.white70)),
+            Text("Lv. ${game.speedLevel}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: MagicColors.crystal, foregroundColor: Colors.black),
+              onPressed: game.gold >= game.speedUpgradeCost() ? game.upgradeSpeed : null,
+              child: Text("${game.speedUpgradeCost()}g"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestList() {
+    return ListView(
+      children: game.dailyQuests.map((q) {
+        final recipe = allRecipes.firstWhere((r) => r.key == q.recipeKey);
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: q.done ? Colors.green.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: ListTile(
+            dense: true,
+            title: Text(recipe.name, style: TextStyle(fontSize: 12, color: q.done ? Colors.green : Colors.white)),
+            trailing: Text("${q.reward}g", style: const TextStyle(color: MagicColors.accent, fontSize: 10)),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
 
   Widget brewDialog(BuildContext context, int slot) {
     List<int> selected = [];
