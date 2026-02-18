@@ -1,6 +1,158 @@
+enum ShopCurrency { gold, crystal }
+
+class ShopItem {
+  final String name;
+  final ShopCurrency currency;
+  final int price;
+  final void Function(GameState) onBuy;
+
+  const ShopItem({
+    required this.name,
+    required this.currency,
+    required this.price,
+    required this.onBuy,
+  });
+}
+
+
 int lastGoldGain = 0;
 int lastQuestGain = 0;
 bool showGoldAnimation = false;
+
+
+
+List<ShopItem> shopItems = [];
+
+initShop();
+
+
+void initShop() {
+  shopItems = [
+    // Gold items
+    ShopItem(
+      name: "Wild Seed x5",
+      currency: ShopCurrency.gold,
+      price: 50,
+      onBuy: (g) {
+        g.seedStorage[0] += 5;
+      },
+    ),
+    ShopItem(
+      name: "Instant Brew",
+      currency: ShopCurrency.gold,
+      price: 100,
+      onBuy: (g) {
+        g.instantBrewTokens++;
+      },
+    ),
+
+    // Crystal items
+    ShopItem(
+      name: "Rare Potion",
+      currency: ShopCurrency.crystal,
+      price: 25,
+      onBuy: (g) {
+        g.doubleGoldCharges += 3;
+      },
+    ),
+    ShopItem(
+      name: "Epic Potion",
+      currency: ShopCurrency.crystal,
+      price: 75,
+      onBuy: (g) {
+        g.doubleGoldCharges += 10;
+      },
+    ),
+  ];
+}
+
+
+
+
+void buyShopItem(ShopItem item) {
+  if (item.currency == ShopCurrency.gold) {
+    if (gold < item.price) return;
+    gold -= item.price;
+  } else {
+    if (crystals < item.price) return;
+    crystals -= item.price;
+  }
+
+  item.onBuy(this);
+
+  save();
+  notifyListeners();
+}
+
+
+
+
+
+
+class ShopScreen extends StatelessWidget {
+  final GameState game;
+
+  const ShopScreen(this.game, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      children: game.shopItems.map((item) {
+        final isGold = item.currency == ShopCurrency.gold;
+
+        return ListTile(
+          title: Text(item.name),
+          subtitle: Text(
+            "${item.price} ${isGold ? "Gold" : "Crystals"}",
+          ),
+          trailing: ElevatedButton(
+            onPressed: () => game.buyShopItem(item),
+            child: const Text("BUY"),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+
+
+
+
+
+
+TextButton(
+  onPressed: () => setState(() => screen = 0),
+  child: const Text("Brew"),
+),
+TextButton(
+  onPressed: () => setState(() => screen = 1),
+  child: const Text("Garden"),
+),
+TextButton(
+  onPressed: () => setState(() => screen = 2),
+  child: const Text("Shop"),
+),
+
+
+
+
+
+body: screen == 0
+    ? PotionScreen(game)
+    : screen == 1
+        ? GardenScreen(game)
+        : ShopScreen(game),
+
+
+
+
+title: Text("Gold: ${game.gold}   Crystals: ${game.crystals}"),
+
+
+
+
+
 
 
 
