@@ -246,14 +246,18 @@ class GameState extends ChangeNotifier {
   }
 
   bool checkLevelUp() {
-    int needed = 100 * level * level;
-    if (xp >= needed) {
+    bool leveled = false;
+  
+    while (true) {
+      int needed = 100 * level * level;
+      if (xp < needed) break;
       xp -= needed;
       level++;
-      notifyListeners();
-      return true;
+      leveled = true;
     }
-    return false;
+  
+    if (leveled) notifyListeners();
+    return leveled;
   }
 
   int checkDailyQuests(String key) {
@@ -487,9 +491,7 @@ class GameState extends ChangeNotifier {
     showGoldAnimation = true;
 
     brewSlots[slot] = null;
-    save();
-    notifyListeners();
-    
+   
     if (leveled) {
       showGoldAnimation = false;
     }
@@ -500,10 +502,11 @@ class GameState extends ChangeNotifier {
   List<Map<String, dynamic>?> garden =
   List.generate(maxGardenSlots, (_) => null);
 
-  List<int> storage =
-      List.generate(plants.length, (_) => 0);
-  List<int> seedStorage =
-      List.generate(seeds.length, (_) => 0);
+  storage = List.generate(
+      plants.length, (i) => prefs.getInt("storage_$i") ?? 0);
+  
+  seedStorage = List.generate(
+      seeds.length, (i) => prefs.getInt("seeds_$i") ?? 0);
 
   List<Map<String, dynamic>?> brewSlots =
   List.generate(3, (_) => null);
@@ -549,11 +552,11 @@ class GameState extends ChangeNotifier {
     xp = prefs.getInt("xp") ?? 0;
     brewSpeed = 1.0 + speedLevel * 0.25;
 
-    storage =
-        List.generate(10, (i) => prefs.getInt("storage_$i") ?? 0);
-    seedStorage =
-        List.generate(10, (i) => prefs.getInt("seeds_$i") ?? 0);
-
+    storage = List.generate(
+        plants.length, (i) => prefs.getInt("storage_$i") ?? 0);
+    
+    seedStorage = List.generate(
+        seeds.length, (i) => prefs.getInt("seeds_$i") ?? 0);
 
     for (int i = 0; i < maxGardenSlots; i++) {
       String? data = prefs.getString("garden_$i");
@@ -836,17 +839,24 @@ class _MyAppState extends State<MyApp> {
   bool loaded = false;
   int screen = 0;
 
+  Timer? timer;
+  
   @override
   void initState() {
     super.initState();
     game.load().then((_) {
-      setState(() {
-        loaded = true;
-      });
-      Timer.periodic(
+      setState(() => loaded = true);
+      timer = Timer.periodic(
           const Duration(seconds: 1), (_) => game.checkBrew());
     });
   }
+  
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
 
   @override
   Widget build(BuildContext context) {
