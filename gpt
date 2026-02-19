@@ -1,3 +1,107 @@
+storage = List.generate(
+    plants.length, (i) => prefs.getInt("storage_$i") ?? 0);
+
+seedStorage = List.generate(
+    seeds.length, (i) => prefs.getInt("seeds_$i") ?? 0);
+
+
+
+
+for (int i = 0; i < plants.length; i++) {
+  await prefs.setInt("storage_$i", storage[i]);
+}
+
+for (int i = 0; i < seeds.length; i++) {
+  await prefs.setInt("seeds_$i", seedStorage[i]);
+}
+
+
+
+
+
+
+
+bool checkLevelUp() {
+  bool leveled = false;
+
+  while (true) {
+    int needed = 100 * level * level;
+    if (xp < needed) break;
+    xp -= needed;
+    level++;
+    leveled = true;
+  }
+
+  if (leveled) notifyListeners();
+  return leveled;
+}
+
+
+
+
+
+Timer? timer;
+
+@override
+void initState() {
+  super.initState();
+  game.load().then((_) {
+    setState(() => loaded = true);
+    timer = Timer.periodic(
+        const Duration(seconds: 1), (_) => game.checkBrew());
+  });
+}
+
+@override
+void dispose() {
+  timer?.cancel();
+  super.dispose();
+}
+
+
+
+
+
+
+void checkBrew() {
+  bool changed = false;
+
+  for (int i = 0; i < 3; i++) {
+    final slot = brewSlots[i];
+    if (slot == null) continue;
+    if (slot["done"] == true) continue;
+
+    int start = slot["start"];
+    int total = slot["time"];
+
+    int elapsed = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(start))
+        .inSeconds;
+
+    if (elapsed >= total) {
+      List<int> ids = List<int>.from(slot["plants"]);
+      ids.sort();
+      discovered.add(ids.join("_"));
+      slot["done"] = true;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    save();
+    notifyListeners();
+  }
+}
+
+
+
+
+
+
+
+
+
+
 List<int> storage =
     List.generate(plants.length, (_) => 0);
 List<int> seedStorage =
