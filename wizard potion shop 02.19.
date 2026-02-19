@@ -230,6 +230,10 @@ class GameState extends ChangeNotifier {
     final plant = plants[plantId];
     return (plant.cost / 2).round();
   }
+  List<int> storage =
+      List.generate(plants.length, (_) => 0);
+  List<int> seedStorage =
+      List.generate(seeds.length, (_) => 0);
   int getPotionXp(Rarity rarity) {
     switch (rarity) {
       case Rarity.common:
@@ -460,10 +464,6 @@ class GameState extends ChangeNotifier {
 
 
   void sellPotion(int slot) {
-  List<int> storage =
-      List.generate(plants.length, (_) => 0);
-  List<int> seedStorage =
-      List.generate(seeds.length, (_) => 0);
     final data = brewSlots[slot];
     if (data == null) return;
 
