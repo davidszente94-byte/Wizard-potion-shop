@@ -242,7 +242,21 @@ class GameState extends ChangeNotifier {
         return 900;
     }
   }
+  double xpProgress() {
+    int needed = 100 * level * level;
+    return (xp / needed).clamp(0.0, 1.0);
+  }
 
+  bool checkLevelUp() {
+    int needed = 100 * level * level;
+    if (xp >= needed) {
+      xp -= needed;
+      level++;
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
 
   int checkDailyQuests(String key) {
     int reward = 0;
@@ -267,14 +281,10 @@ class GameState extends ChangeNotifier {
     return reward;
   }
 
-  void addXp(int amount) {
+  bool gainXP(int amount) {
     xp += amount;
-
-    while (xp >= xpToNextLevel()) {
-      xp -= xpToNextLevel();
-      level++;
-      onLevelUp();
-    }
+    return checkLevelUp();
+  }
 
     save();
     notifyListeners();
