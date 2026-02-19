@@ -460,6 +460,10 @@ class GameState extends ChangeNotifier {
 
 
   void sellPotion(int slot) {
+  List<int> storage =
+      List.generate(plants.length, (_) => 0);
+  List<int> seedStorage =
+      List.generate(seeds.length, (_) => 0);
     final data = brewSlots[slot];
     if (data == null) return;
 
@@ -501,12 +505,6 @@ class GameState extends ChangeNotifier {
 
   List<Map<String, dynamic>?> garden =
   List.generate(maxGardenSlots, (_) => null);
-
-  storage = List.generate(
-      plants.length, (i) => prefs.getInt("storage_$i") ?? 0);
-  
-  seedStorage = List.generate(
-      seeds.length, (i) => prefs.getInt("seeds_$i") ?? 0);
 
   List<Map<String, dynamic>?> brewSlots =
   List.generate(3, (_) => null);
@@ -599,8 +597,11 @@ class GameState extends ChangeNotifier {
     await prefs.setInt("level", level);
     await prefs.setInt("xp", xp);
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < plants.length; i++) {
       await prefs.setInt("storage_$i", storage[i]);
+    }
+    
+    for (int i = 0; i < seeds.length; i++) {
       await prefs.setInt("seeds_$i", seedStorage[i]);
     }
 
@@ -798,34 +799,37 @@ class GameState extends ChangeNotifier {
   }
 
   void checkBrew() {
+    bool changed = false;
+  
     for (int i = 0; i < 3; i++) {
       final slot = brewSlots[i];
       if (slot == null) continue;
-
       if (slot["done"] == true) continue;
-
+  
       int start = slot["start"];
       int total = slot["time"];
-
+  
       int elapsed = DateTime
           .now()
           .difference(
           DateTime.fromMillisecondsSinceEpoch(start))
           .inSeconds;
-
+  
       if (elapsed >= total) {
         List<int> ids =
-        List<int>.from(slot["plants"]);
+            List<int>.from(slot["plants"]);
         ids.sort();
         discovered.add(ids.join("_"));
         slot["done"] = true;
+        changed = true;
       }
     }
-
-    save();
-    notifyListeners();
+  
+    if (changed) {
+      save();
+      notifyListeners();
+    }
   }
-}
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
