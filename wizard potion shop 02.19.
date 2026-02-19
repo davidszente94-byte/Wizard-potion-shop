@@ -280,8 +280,6 @@ class GameState extends ChangeNotifier {
     }
 
     if (reward > 0) {
-      save();
-      notifyListeners();
     }
 
     return reward;
@@ -290,8 +288,6 @@ class GameState extends ChangeNotifier {
   bool gainXP(int amount) {
     xp += amount;
     bool leveled = checkLevelUp();
-    save();
-    notifyListeners();
     return leveled;
   }
 
@@ -310,7 +306,7 @@ class GameState extends ChangeNotifier {
         currency: ShopCurrency.gold,
         onBuy: (g) {
           for (int i = 0; i < 5; i++) {
-            int randomSeed = Random().nextInt(3) + 1;
+            int randomSeed = Random().nextInt(seeds.length - 1) + 1;
             g.seedStorage[randomSeed]++;
           }
         },
@@ -360,7 +356,7 @@ class GameState extends ChangeNotifier {
 
       ShopItem(
         id: "xp_boost",
-        name: "XP Boost (1h)",
+        name: "XP Boost (5 brews)",
         description: "Double XP for 1 hour",
         price: 40,
         currency: ShopCurrency.crystal,
@@ -422,7 +418,8 @@ class GameState extends ChangeNotifier {
     List<Recipe> possibleQuests = List.from(allRecipes);
     possibleQuests.shuffle();
 
-    for (int i = 0; i < 3; i++) {
+    int count = min(3, possibleQuests.length);
+    for (int i = 0; i < count; i++) {
       dailyQuests.add(DailyQuest(
         recipeKey: possibleQuests[i].key,
         reward: (i + 1) * 20,
@@ -499,6 +496,8 @@ class GameState extends ChangeNotifier {
     if (leveled) {
       showGoldAnimation = false;
     }
+    save();
+    notifyListeners();
   }
 
   static const int maxGardenSlots = 10;
