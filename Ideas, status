@@ -5,9 +5,16 @@
 	- make difference between plant buy price and sellprice, not just "cost" - potion cannot be bought, seed cannot be sold
 	- brewing: mystic elixir to be changed to 3 different type of basic elixirs, price and exp corresponding
 
+checklist UI:
+	- Lv shown, exp load bar, exp bar is loading when exp gained, exp gained shown at harvest/potionbrew
+	- lvl up: new tab comes up "Congratulations! You reached level X! Bonuses: +1% faster growing time, +1% faster brewtime)
+	- unlocked/locked items, silouettes (seeds,plants,potions-recipes)
+
+
 to be added later or delete:
 	- potion buff rendszer, potion "store" -> now only sell
 	- mana system
+	- skillpoint system
 
 
 26.02.18.
