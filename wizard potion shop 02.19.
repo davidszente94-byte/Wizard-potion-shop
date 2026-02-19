@@ -217,6 +217,7 @@ class GameState extends ChangeNotifier {
   int level = 1;
   int xp = 0;
   int instantBrewTokens = 0;
+  int doubleXpCharges = 0;
   int doubleGoldCharges = 0;
   double brewSpeed = 1.0;
   int unlockedSlots = 3;
@@ -356,7 +357,7 @@ class GameState extends ChangeNotifier {
         price: 40,
         currency: ShopCurrency.crystal,
         onBuy: (g) {
-          g.doubleGoldCharges += 5; // átmeneti placeholder mechanika
+          g.doubleXpCharges += 5;
         },
       ),
 
@@ -475,6 +476,10 @@ class GameState extends ChangeNotifier {
 
     final rarity = getRarity(ids);
     int xpGain = getPotionXp(rarity);
+    if (doubleXpCharges > 0) {
+      xpGain *= 2;
+      doubleXpCharges--;
+    }
     bool leveled = gainXP(xpGain);
 
     lastGoldGain = baseReward;
@@ -484,12 +489,10 @@ class GameState extends ChangeNotifier {
     brewSlots[slot] = null;
     save();
     notifyListeners();
+    
     if (leveled) {
-    }
-    Future.delayed(const Duration(milliseconds: 1000), () {
       showGoldAnimation = false;
-      notifyListeners();
-    });
+    }
   }
 
   static const int maxGardenSlots = 10;
@@ -498,10 +501,9 @@ class GameState extends ChangeNotifier {
   List.generate(maxGardenSlots, (_) => null);
 
   List<int> storage =
-  List.generate(10, (_) => 0);
+      List.generate(plants.length, (_) => 0);
   List<int> seedStorage =
-  List.generate(10, (_) => 0);
-
+      List.generate(seeds.length, (_) => 0);
 
   List<Map<String, dynamic>?> brewSlots =
   List.generate(3, (_) => null);
@@ -838,7 +840,6 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     game.load().then((_) {
-      game.generateDailyQuestsIfNeeded();
       setState(() {
         loaded = true;
       });
