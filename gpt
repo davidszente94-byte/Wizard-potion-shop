@@ -1,3 +1,102 @@
+double roll = Random().nextDouble();
+double sum = 0;
+int resultPlant = seed.results.first.plantId;
+
+for (var r in seed.results) {
+  sum += r.chance;
+  if (roll <= sum) {
+    resultPlant = r.plantId;
+    break;
+  }
+}
+
+// XP a konkrét növény után
+bool leveled = gainXP(getPlantXp(resultPlant));
+
+
+
+
+final plantId = game.harvest(i);
+if (plantId != null) {
+  final plant = plants[plantId];
+
+  bool leveled = game.gainXP(game.getPlantXp(plantId));
+
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Harvest Complete"),
+      content: Text(
+        '1x ${plant.name} is added to your inventory',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("OK"),
+        )
+      ],
+    ),
+  );
+
+  if (leveled) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Level Up!"),
+        content: Text(
+          "Congratulations! You reached level ${game.level}!",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+
+
+
+
+title: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Text(
+      "Lv ${game.level}   Gold: ${game.gold}   Crystals: ${game.crystals}",
+    ),
+    const SizedBox(height: 4),
+    SizedBox(
+      width: 180,
+      child: LinearProgressIndicator(
+        value: game.xpProgress(),
+        minHeight: 6,
+        backgroundColor: Colors.grey.shade800,
+        valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+      ),
+    ),
+    Text(
+      "Instant Brew Tokens: ${game.instantBrewTokens}",
+      style: const TextStyle(fontSize: 12),
+    ),
+  ],
+),
+
+
+
+
+
+
+
+
+
+
+
+
 double xpProgress() {
   int needed = 100 * level * level;
   return (xp / needed).clamp(0.0, 1.0);
