@@ -1,3 +1,98 @@
+double xpProgress() {
+  int needed = 100 * level * level;
+  return (xp / needed).clamp(0.0, 1.0);
+}
+
+
+
+
+
+
+bool checkLevelUp() {
+  int needed = 100 * level * level;
+  if (xp >= needed) {
+    xp -= needed;
+    level++;
+    notifyListeners();
+    return true;
+  }
+  return false;
+}
+
+
+
+
+
+
+bool gainXP(int amount) {
+  xp += amount;
+  return checkLevelUp();
+}
+
+
+
+
+bool leveled = game.gainXP(plantXp);
+
+if (leveled) {
+  showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Level Up!"),
+      content: Text(
+        "Congratulations! You reached level ${game.level}!",
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("OK"),
+        ),
+      ],
+    ),
+  );
+}
+
+
+
+
+
+
+
+Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Text(
+      "Lvl ${game.level}",
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+      ),
+    ),
+    const SizedBox(height: 4),
+    SizedBox(
+      width: 120,
+      child: LinearProgressIndicator(
+        value: game.xpProgress(),
+        minHeight: 6,
+        backgroundColor: Colors.grey.shade800,
+        valueColor:
+            const AlwaysStoppedAnimation<Color>(Colors.blue),
+      ),
+    ),
+  ],
+),
+
+
+
+
+
+
+
+
+
+
+
+
 int getPlantXp(int plantId) {
   final plant = plants[plantId];
   return (plant.cost / 2).round();
