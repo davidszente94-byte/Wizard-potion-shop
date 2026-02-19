@@ -1,3 +1,5 @@
+fejlesszük az EXP rendszert. add hozzá a létező programomhoz hogy a lvl kijelzés mellett mindig látszódjon egy kék töltőcsík, ami az aktuális szint aktuális EXP-jét mutatja tehát százalékos arányban, tehát akkor ér a feléhez amikor 50%ra vagyunk a következő szinthez, akkor ér a legvégére amikor majdnem lvlup-nál vagyunk és lvlup után lenullázódik és újra tölt. lvl up esetén  külön felugró ablak ami informálja a játékost, pl Congratulations! You reached lvl X!.
+
 26.02.19.
 
 	- seeds to be hidden with silouette, only first one is available, rest will be unlocked at LVL3 5 8 15
