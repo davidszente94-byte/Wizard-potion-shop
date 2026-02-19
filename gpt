@@ -1,3 +1,52 @@
+onPressed: () {
+  final beforeLevel = game.level;
+  final plantId = game.harvest(i);
+
+  if (plantId != null) {
+    final plant = plants[plantId];
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Harvest Complete"),
+        content: Text(
+          '1x ${plant.name} is added to your inventory',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          )
+        ],
+      ),
+    );
+
+    if (game.level > beforeLevel) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Level Up!"),
+          content: Text(
+            "Congratulations! You reached level ${game.level}!",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+},
+
+
+
+
+
+
+
 int xpGain = calculatePotionXp(ids);
 gainXP(xpGain);
 
