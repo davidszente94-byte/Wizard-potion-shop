@@ -1,3 +1,35 @@
+List<int> storage =
+    List.generate(plants.length, (_) => 0);
+List<int> seedStorage =
+    List.generate(seeds.length, (_) => 0);
+
+
+
+
+g.instantBrewTokens += 3;
+
+
+
+brewSlots[slot] = null;
+save();
+notifyListeners();
+
+if (leveled) {
+  showGoldAnimation = false;
+}
+
+Future.delayed(const Duration(milliseconds: 1000), () {
+  showGoldAnimation = false;
+  notifyListeners();
+});
+
+
+
+
+
+
+
+
 onPressed: () {
   final beforeLevel = game.level;
   final plantId = game.harvest(i);
