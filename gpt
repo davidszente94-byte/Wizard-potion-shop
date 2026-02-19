@@ -1,3 +1,113 @@
+int xpGain = calculatePotionXp(ids);
+gainXP(xpGain);
+
+
+
+
+
+
+final rarity = getRarity(ids);
+final xp = getPotionXp(rarity);
+gainXP(xp);
+
+
+
+
+
+int? harvest(int slot) {
+  final data = garden[slot];
+  if (data == null) return null;
+
+  int seedId = data["seedId"];
+  int start = data["start"];
+
+  final seed = seeds[seedId];
+
+  final elapsed = DateTime.now().difference(
+      DateTime.fromMillisecondsSinceEpoch(start));
+
+  int growTime = seed.growTime.inSeconds;
+
+  if (elapsed.inSeconds < growTime) return null;
+
+  double roll = Random().nextDouble();
+  double sum = 0;
+  int resultPlant = seed.results.first.plantId;
+
+  for (var r in seed.results) {
+    sum += r.chance;
+    if (roll <= sum) {
+      resultPlant = r.plantId;
+      break;
+    }
+  }
+
+  storage[resultPlant]++;
+  garden[slot] = null;
+
+  // XP itt kerül kiosztásra
+  gainXP(getPlantXp(resultPlant));
+
+  save();
+  notifyListeners();
+
+  return resultPlant;
+}
+
+
+
+
+
+
+onPressed: () {
+  final plantId = game.harvest(i);
+  if (plantId != null) {
+    final plant = plants[plantId];
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Harvest Complete"),
+        content: Text(
+          '1x ${plant.name} is added to your inventory',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          )
+        ],
+      ),
+    );
+  }
+},
+
+
+
+
+
+
+
+
+int xpGain = calculatePotionXp(ids);
+bool leveled = gainXP(xpGain);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 double roll = Random().nextDouble();
 double sum = 0;
 int resultPlant = seed.results.first.plantId;
