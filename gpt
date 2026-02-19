@@ -1,3 +1,44 @@
+int getPlantXp(int plantId) {
+  final plant = plants[plantId];
+  return (plant.cost / 2).round();
+}
+
+
+
+
+
+int getPotionXp(Rarity rarity) {
+  switch (rarity) {
+    case Rarity.common:
+      return 80;
+    case Rarity.rare:
+      return 250;
+    case Rarity.epic:
+      return 900;
+  }
+}
+
+
+
+
+final xp = getPlantXp(plantId);
+addXp(xp);
+
+
+
+final rarity = getRarity(ids);
+final xp = getPotionXp(rarity);
+addXp(xp);
+
+
+
+
+
+
+
+
+
+
 int level = 1;
 int xp = 0;
 
