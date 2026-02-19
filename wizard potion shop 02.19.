@@ -228,8 +228,20 @@ class GameState extends ChangeNotifier {
   bool showGoldAnimation = false;
   List<DailyQuest> dailyQuests = [];
   String lastQuestDay = "";
-
-
+  int getPlantXp(int plantId) {
+    final plant = plants[plantId];
+    return (plant.cost / 2).round();
+  }
+  int getPotionXp(Rarity rarity) {
+    switch (rarity) {
+      case Rarity.common:
+        return 80;
+      case Rarity.rare:
+        return 250;
+      case Rarity.epic:
+        return 900;
+    }
+  }
 
 
   int checkDailyQuests(String key) {
@@ -665,6 +677,9 @@ class GameState extends ChangeNotifier {
     double sum = 0;
     int resultPlant = seed.results.first.plantId;
 
+    final xp = getPlantXp(plantId);
+    addXp(xp);
+
     for (var r in seed.results) {
       sum += r.chance;
       if (roll <= sum) {
@@ -743,6 +758,9 @@ class GameState extends ChangeNotifier {
       "time": time.inSeconds,
       "done": false
     };
+    final rarity = getRarity(ids);
+    final xp = getPotionXp(rarity);
+    addXp(xp);
 
     save();
     notifyListeners();
