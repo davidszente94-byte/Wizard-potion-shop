@@ -286,19 +286,6 @@ class GameState extends ChangeNotifier {
     return leveled;
   }
 
-  int calculatePotionXp(List<int> ids) {
-    final rarity = getRarity(ids);
-
-    switch (rarity) {
-      case Rarity.common:
-        return 5;
-      case Rarity.rare:
-        return 15;
-      case Rarity.epic:
-        return 40;
-    }
-  }
-
   void initShop() {
     shopItems = [
 
@@ -486,7 +473,8 @@ class GameState extends ChangeNotifier {
 
     gold += baseReward + questReward;
 
-    int xpGain = calculatePotionXp(ids);
+    final rarity = getRarity(ids);
+    int xpGain = getPotionXp(rarity);
     bool leveled = gainXP(xpGain);
 
     lastGoldGain = baseReward;
@@ -759,9 +747,6 @@ class GameState extends ChangeNotifier {
       "time": time.inSeconds,
       "done": false
     };
-    final rarity = getRarity(ids);
-    final xp = getPotionXp(rarity);
-    gainXp(xp);
 
     save();
     notifyListeners();
@@ -1368,7 +1353,9 @@ class GardenScreen extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                     backgroundColor: s.color.withOpacity(0.6)),
                 onPressed: () {
+                  final beforeLevel = game.level;
                   final plantId = game.harvest(i);
+                
                   if (plantId != null) {
                     final plant = plants[plantId];
                 
@@ -1387,8 +1374,8 @@ class GardenScreen extends StatelessWidget {
                         ],
                       ),
                     );
-                  
-                    if (leveled) {
+                
+                    if (game.level > beforeLevel) {
                       showDialog(
                         context: context,
                         builder: (_) => AlertDialog(
@@ -1406,6 +1393,7 @@ class GardenScreen extends StatelessWidget {
                       );
                     }
                   }
+                },
                 child: Text(
                   "Harvest\n${s.name}",
                   textAlign: TextAlign.center,
