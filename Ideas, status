@@ -2,9 +2,12 @@
 
 	- seeds to be hidden with silouette, only first one is available, rest will be unlocked at LVL3 5 8 15
 	- plant "duration" makes no sense anymore, delete
-	- make difference between buy price and sellprice, not just "cost"
-	- brewing: mystic elixir to be changed to 3 different type of basic elixirs
-	- 
+	- make difference between plant buy price and sellprice, not just "cost" - potion cannot be bought, seed cannot be sold
+	- brewing: mystic elixir to be changed to 3 different type of basic elixirs, price and exp corresponding
+
+to be added later or delete:
+	- potion buff rendszer, potion "store" -> now only sell
+	- mana system
 
 
 26.02.18.
