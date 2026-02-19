@@ -216,9 +216,6 @@ class GameState extends ChangeNotifier {
   int speedLevel = 0;
   int level = 1;
   int xp = 0;
-  int xpToNextLevel() {
-    return 50 + (level - 1) * 25;
-  }
   int instantBrewTokens = 0;
   int doubleGoldCharges = 0;
   double brewSpeed = 1.0;
@@ -283,16 +280,10 @@ class GameState extends ChangeNotifier {
 
   bool gainXP(int amount) {
     xp += amount;
-    return checkLevelUp();
-  }
-
+    bool leveled = checkLevelUp();
     save();
     notifyListeners();
-  }
-
-  void onLevelUp() {
-    crystals += 5;
-    instantBrewTokens += 1;
+    return leveled;
   }
 
   int calculatePotionXp(List<int> ids) {
@@ -686,10 +677,7 @@ class GameState extends ChangeNotifier {
     double roll = Random().nextDouble();
     double sum = 0;
     int resultPlant = seed.results.first.plantId;
-
-    final xp = getPlantXp(plantId);
-    addXp(xp);
-
+    
     for (var r in seed.results) {
       sum += r.chance;
       if (roll <= sum) {
@@ -901,15 +889,27 @@ class _MyAppState extends State<MyApp> {
               Scaffold(
                 appBar: AppBar(
                   title: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Lv ${game.level}   Gold: ${game.gold}   Crystals: ${game.crystals}"),
-                          Text(
-                            "Instant Brew Tokens: ${game.instantBrewTokens}",
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                        ],
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Lv ${game.level}   Gold: ${game.gold}   Crystals: ${game.crystals}",
                       ),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        width: 180,
+                        child: LinearProgressIndicator(
+                          value: game.xpProgress(),
+                          minHeight: 6,
+                          backgroundColor: Colors.grey.shade800,
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                        ),
+                      ),
+                      Text(
+                        "Instant Brew Tokens: ${game.instantBrewTokens}",
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
 
                   actions: [
                     TextButton(
@@ -1368,7 +1368,9 @@ class GardenScreen extends StatelessWidget {
                   final plantId = game.harvest(i);
                   if (plantId != null) {
                     final plant = plants[plantId];
-
+                  
+                    bool leveled = game.gainXP(game.getPlantXp(plantId));
+                  
                     showDialog(
                       context: context,
                       builder: (_) => AlertDialog(
@@ -1384,8 +1386,25 @@ class GardenScreen extends StatelessWidget {
                         ],
                       ),
                     );
+                  
+                    if (leveled) {
+                      showDialog(
+                        context: context,
+                        builder: (_) => AlertDialog(
+                          title: const Text("Level Up!"),
+                          content: Text(
+                            "Congratulations! You reached level ${game.level}!",
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("OK"),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
                   }
-                },
                 child: Text(
                   "Harvest\n${s.name}",
                   textAlign: TextAlign.center,
