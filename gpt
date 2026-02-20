@@ -1,3 +1,91 @@
+Seed getRandomSeedFromPackage() {
+  final rand = Random().nextDouble();
+
+  int selectedId;
+
+  if (rand < 0.55) {
+    selectedId = 1; // Luminous
+  } else if (rand < 0.85) {
+    selectedId = 2; // Arcane
+  } else {
+    selectedId = 3; // Ancient
+  }
+
+  return seeds.firstWhere((s) => s.id == selectedId);
+}
+
+
+
+
+
+void buySeedPackage() {
+  const packagePrice = 720;
+
+  if (gold < packagePrice) return;
+
+  gold -= packagePrice;
+
+  final seed = getRandomSeedFromPackage();
+  addSeedToInventory(seed);
+
+  notifyListeners();
+}
+
+
+
+
+
+const randomSeedPrice = 720;
+
+
+Seed getRandomSeed()
+void buyRandomSeed()
+
+
+
+import 'dart:math';
+
+Seed getRandomSeed() {
+  final rand = Random().nextDouble();
+
+  int selectedId;
+
+  if (rand < 0.55) {
+    selectedId = 1; // Luminous
+  } else if (rand < 0.85) {
+    selectedId = 2; // Arcane
+  } else {
+    selectedId = 3; // Ancient
+  }
+
+  return seeds.firstWhere((s) => s.id == selectedId);
+}
+
+
+
+
+void buyRandomSeed() {
+  const randomSeedPrice = 720;
+
+  if (gold < randomSeedPrice) return;
+
+  gold -= randomSeedPrice;
+
+  final seed = getRandomSeed();
+  addSeedToInventory(seed);
+
+  notifyListeners();
+}
+
+
+
+
+
+
+
+
+
+
 a seed rendszer most imbalanced. A shopban vehető seed csomag 200 goldba kerül és az összes seed közül válogat, tehát a celestial is benne van, ami amúgy 15000 goldba kerülne. Emellett a 0ás seedet tilos itt választani, hiszen az alapból ingyenes, ez miatt nem megy a játékos soha csődbe. Válogasson a seed package random az  1,2,3 közül, de nem adhat 4es celestial seedet. az esélyek, hogy melyik hány%-al jön ki belőle definiáld te ésszerűen, és ennek értelmében adj a package-nek árat is (200 az túl olcsó).
 
 onPressed: () {
