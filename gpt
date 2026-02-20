@@ -1,3 +1,66 @@
+Widget plantDialog(BuildContext context, int slot) {
+  return AlertDialog(
+    title: const Text("Choose seed"),
+    content: SizedBox(
+      width: 300,
+      height: 300,
+      child: GridView.count(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        children: List.generate(seeds.length, (i) {
+          final s = seeds[i];
+          final amount = game.seedStorage[i];
+          // Wild Seed mindig elérhető, egyébként csak ha van belőle
+          final canPlant = s.id == 0 || amount > 0;
+
+          return ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: canPlant
+                  ? s.color.withOpacity(0.2)
+                  : Colors.grey.withOpacity(0.2),
+            ),
+            onPressed: () async {
+              if (!canPlant && s.id != 0) {
+                // Nincs seed, próbáljuk meg vásárolni
+                if (game.gold >= s.cost) {
+                  // Vásárlás
+                  game.buySeed(s.id);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("${s.name} purchased for ${s.cost}g")),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Not enough gold to buy this seed")),
+                  );
+                  return; // nem lehet ültetni
+                }
+              }
+
+              // Ültetés
+              game.plant(slot, i);
+              Navigator.pop(context);
+            },
+            child: Text(
+              "${s.name}\n${s.cost}g",
+              textAlign: TextAlign.center,
+            ),
+          );
+        }),
+      ),
+    ),
+  );
+}
+
+
+
+
+
+
+
+
+
+
 ElevatedButton(
   onPressed: () {
     final itemsBefore = {
