@@ -1,3 +1,39 @@
+onPressed: () {
+  final beforeLevel = game.level;
+
+  game.sellPotion(i);
+
+  if (game.level > beforeLevel) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Level Up!"),
+        content: Text(
+          "Congratulations! You reached level ${game.level}!",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
+},
+
+
+
+
+
+
+
+
+
+
+
+
+
 void checkBrew() {
   bool changed = false;
 
