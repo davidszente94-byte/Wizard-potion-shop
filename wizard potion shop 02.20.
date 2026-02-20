@@ -3,8 +3,19 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-void main() {
+void main() async {
+  runApp(const MyApp());
+
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+
   runApp(const MyApp());
 }
 
@@ -15,6 +26,8 @@ class MagicColors {
   static const Color crystal = Color(0xFF00D2FF);
   static const Color textLight = Color(0xFFE0E0E0);
 }
+
+
 
 class SeedResult {
   final int plantId;
@@ -136,6 +149,8 @@ class Recipe {
     return sorted.join("_");
   }
 }
+
+
 
 const List<Recipe> allRecipes = [
   Recipe([0, 0, 0], "Solar Tonic", Rarity.common),
