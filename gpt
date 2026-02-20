@@ -1,3 +1,5 @@
+kerülne. Emellett a 0ás seedet tilos itt választani, hiszen az alapból ingyenes, ez miatt nem megy a játékos soha csődbe. Válogasson a seed package random az  1,2,3 közül, de nem adhat 4es celestial seedet. az esélyek, hogy melyik hány%-al jön ki belőle definiáld te ésszerűen, és ennek értelmében adj a package-nek árat is (200 az túl olcsó).
+
 onPressed: () {
   final beforeLevel = game.level;
 
