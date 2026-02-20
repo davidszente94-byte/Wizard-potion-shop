@@ -267,6 +267,34 @@ class GameState extends ChangeNotifier {
     super.dispose();
   }
 
+  Seed getRandomSeed() {
+    final rand = Random().nextDouble();
+  
+    int selectedId;
+  
+    if (rand < 0.55) {
+      selectedId = 1; // Luminous
+    } else if (rand < 0.85) {
+      selectedId = 2; // Arcane
+    } else {
+      selectedId = 3; // Ancient
+    }
+    return seeds.firstWhere((s) => s.id == selectedId);
+  }
+
+  void buyRandomSeed() {
+    const randomSeedPrice = 720;
+  
+    if (gold < randomSeedPrice) return;
+  
+    gold -= randomSeedPrice;
+  
+    final seed = getRandomSeed();
+    addSeedToInventory(seed);
+  
+    notifyListeners();
+  }
+
   List<int> storage = List.generate(plants.length, (_) => 0);
   List<int> seedStorage = List.generate(seeds.length, (_) => 0);
   int getPotionXp(Rarity rarity) {
@@ -332,8 +360,8 @@ class GameState extends ChangeNotifier {
       // =========================
       ShopItem(
         id: "seed_pack_basic",
-        name: "Seed Package",
-        description: "5 random seeds",
+        name: "Random Seed",
+        description: "1 common seed",
         price: 200,
         currency: ShopCurrency.gold,
         onBuy: (g) {
@@ -1318,11 +1346,29 @@ class PotionScreen extends StatelessWidget {
               backgroundColor: MagicColors.accent,
               foregroundColor: Colors.black,
             ),
-            onPressed: () => game.sellPotion(i),
-            child: const Text(
-              "COLLECT",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            onPressed: () {
+              final beforeLevel = game.level;
+            
+              game.sellPotion(i);
+            
+              if (game.level > beforeLevel) {
+                showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text("Level Up!"),
+                    content: Text(
+                      "Congratulations! You reached level ${game.level}!",
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("OK"),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            },
           ),
       ],
     );
