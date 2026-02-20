@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
 void main() async {
-  runApp(const MyApp());
 
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -268,6 +267,12 @@ class GameState extends ChangeNotifier {
   }
   Timer? _ticker;
 
+  Timer? brewingTimer;
+  Timer? growingTimer;
+
+
+
+
   void startTicker() {
     _ticker?.cancel();
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -473,20 +478,40 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void buyShopItem(ShopItem item) {
+
+
+  List<String> buyShopItemWithPopup(ShopItem item) {
     if (item.currency == ShopCurrency.gold) {
-      if (gold < item.price) return;
+      if (gold < item.price) return [];
       gold -= item.price;
     } else {
-      if (crystals < item.price) return;
+      if (crystals < item.price) return [];
       crystals -= item.price;
     }
 
+    // Eredeti onBuy hívása
     item.onBuy(this);
+
+    // Ami most jár: listában visszaadjuk
+    List<String> received = [];
+
+    for (int i = 0; i < seedStorage.length; i++) {
+      if (seedStorage[i] > 0) received.add("1x ${seeds[i].name}");
+    }
+    for (int i = 0; i < storage.length; i++) {
+      if (storage[i] > 0) received.add("1x ${plants[i].name}");
+    }
+    if (instantBrewTokens > 0) received.add("${instantBrewTokens}x Instant Brew Token");
+    if (doubleXpCharges > 0) received.add("${doubleXpCharges}x Double XP");
+    if (doubleGoldCharges > 0) received.add("${doubleGoldCharges}x Double Gold");
 
     save();
     notifyListeners();
+
+    return received;
   }
+
+
 
   void generateDailyQuestsIfNeeded() {
     String today = DateTime.now().toIso8601String().substring(0, 10);
@@ -668,6 +693,10 @@ class GameState extends ChangeNotifier {
 
     generateDailyQuestsIfNeeded();
     initShop();
+
+    gold += 10000;
+    crystals += 100;
+
     notifyListeners();
   }
 
@@ -1390,6 +1419,39 @@ class PotionScreen extends StatelessWidget {
             },
             child: const Text("Sell"),
           ),
+
+        // ❗ CANCEL BUTTON IDE
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red.shade700,
+          ),
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text("Cancel Brewing"),
+                content: const Text(
+                    "Are you sure you want to cancel the process?"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("No"),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      game.brewSlots[i] = null;
+                      game.save();
+                      game.notifyListeners();
+                      Navigator.pop(context);
+                    },
+                    child: const Text("Yes"),
+                  ),
+                ],
+              ),
+            );
+          },
+          child: const Text("Cancel"),
+        ),
       ],
     );
   }
@@ -1893,7 +1955,8 @@ class ShopScreen extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        ...goldItems.map((item) => shopTile(item)),
+        // átadjuk a context-et
+        ...goldItems.map((item) => shopTile(item, context)),
 
         const SizedBox(height: 20),
 
@@ -1904,19 +1967,41 @@ class ShopScreen extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        ...crystalItems.map((item) => shopTile(item)),
+        ...crystalItems.map((item) => shopTile(item, context)),
       ],
     );
   }
 
-  Widget shopTile(ShopItem item) {
+  // context paraméter hozzáadva
+  Widget shopTile(ShopItem item, BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
         title: Text(item.name),
         subtitle: Text(item.description),
         trailing: ElevatedButton(
-          onPressed: () => game.buyShopItem(item),
+          onPressed: () {
+            List<String> rewards = game.buyShopItemWithPopup(item);
+
+            if (rewards.isNotEmpty) {
+              showDialog(
+                context: context, // most már működik
+                builder: (_) => AlertDialog(
+                  title: const Text("You got:"),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: rewards.map((r) => Text(r)).toList(),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("OK"),
+                    ),
+                  ],
+                ),
+              );
+            }
+          },
           child: Text(
             "${item.price} ${item.currency == ShopCurrency.gold ? "Gold" : "Crystals"}",
           ),
