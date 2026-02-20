@@ -1,1 +1,32 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+
+  runApp(const MyApp());
+}
+
+
+
+
+android/app/src/main/AndroidManifest.xml
+
+
+android:screenOrientation="landscape"
+
+
+<activity
+    android:name=".MainActivity"
+    android:exported="true"
+    android:launchMode="singleTop"
+    android:theme="@style/LaunchTheme"
+    android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|layoutDirection|fontScale|screenLayout|density|uiMode"
+    android:hardwareAccelerated="true"
+    android:windowSoftInputMode="adjustResize"
+    android:screenOrientation="landscape">
