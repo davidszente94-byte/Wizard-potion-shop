@@ -900,6 +900,8 @@ int getPotionXp(Rarity rarity) {
       return 250;
     case Rarity.epic:
       return 900;
+    default:
+      return 80;
   }
 }
 
