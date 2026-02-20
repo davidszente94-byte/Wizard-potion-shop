@@ -1,3 +1,67 @@
+ElevatedButton(
+  onPressed: () {
+    final itemsBefore = {
+      for (int i = 0; i < seeds.length; i++) i: game.seedStorage[i],
+      for (int i = 0; i < plants.length; i++) i + 100: game.storage[i],
+      "tokens": game.instantBrewTokens,
+      "xpBoost": game.doubleXpCharges,
+    };
+
+    game.buyShopItem(item);
+
+    // Vizsgáljuk mi változott
+    List<String> rewards = [];
+
+    for (int i = 0; i < seeds.length; i++) {
+      int diff = game.seedStorage[i] - (itemsBefore[i] ?? 0);
+      if (diff > 0) rewards.add("$diff x ${seeds[i].name}");
+    }
+
+    for (int i = 0; i < plants.length; i++) {
+      int diff = game.storage[i] - (itemsBefore[i + 100] ?? 0);
+      if (diff > 0) rewards.add("$diff x ${plants[i].name}");
+    }
+
+    int tokenDiff = game.instantBrewTokens - (itemsBefore["tokens"] ?? 0);
+    if (tokenDiff > 0) rewards.add("$tokenDiff Instant Brew Token");
+
+    int xpBoostDiff = game.doubleXpCharges - (itemsBefore["xpBoost"] ?? 0);
+    if (xpBoostDiff > 0) rewards.add("$xpBoostDiff XP Boost");
+
+    // Ha van nyeremény, mutatjuk
+    if (rewards.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("You received:"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: rewards.map((r) => Text(r)).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    }
+  },
+  child: Text("${item.price} ${item.currency == ShopCurrency.gold ? 'g' : '💎'}"),
+)
+
+
+
+
+
+
+
+
+
+
+
+
 @override
 Widget build(BuildContext context) {
   return SingleChildScrollView(
