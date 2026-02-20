@@ -9,13 +9,12 @@ void main() {
 }
 
 class MagicColors {
-  static const Color background = Color(0xFF0F0C29); 
-  static const Color surface = Color(0xFF302B63);    
-  static const Color accent = Color(0xFFFFD700);     
-  static const Color crystal = Color(0xFF00D2FF);    
+  static const Color background = Color(0xFF0F0C29);
+  static const Color surface = Color(0xFF302B63);
+  static const Color accent = Color(0xFFFFD700);
+  static const Color crystal = Color(0xFF00D2FF);
   static const Color textLight = Color(0xFFE0E0E0);
 }
-
 
 class SeedResult {
   final int plantId;
@@ -32,43 +31,76 @@ class Seed {
   final Color color;
   final Duration growTime;
 
-
-  const Seed(this.id, this.name, this.cost, this.results, this.color, this.growTime);
+  const Seed(
+    this.id,
+    this.name,
+    this.cost,
+    this.results,
+    this.color,
+    this.growTime,
+  );
 }
 
 final List<Seed> seeds = [
-  const Seed(0, "Wild Seed", 0, [
-    SeedResult(0, 0.85),
-    SeedResult(1, 0.14),
-    SeedResult(2, 0.01),
-  ], Colors.green, Duration(seconds: 30)),
+  const Seed(
+    0,
+    "Wild Seed",
+    0,
+    [SeedResult(0, 0.85), SeedResult(1, 0.14), SeedResult(2, 0.01)],
+    Colors.green,
+    Duration(seconds: 30),
+  ),
 
-  const Seed(1, "Luminous Seed", 150, [
-    SeedResult(1, 0.45),
-    SeedResult(2, 0.40),
-    SeedResult(3, 0.14),
-    SeedResult(4, 0.01),
-  ], Colors.yellow, Duration(minutes: 5)),
+  const Seed(
+    1,
+    "Luminous Seed",
+    150,
+    [
+      SeedResult(1, 0.45),
+      SeedResult(2, 0.40),
+      SeedResult(3, 0.14),
+      SeedResult(4, 0.01),
+    ],
+    Colors.yellow,
+    Duration(minutes: 5),
+  ),
 
-  const Seed(2, "Arcane Seed", 750, [
-    SeedResult(2, 0.20),
-    SeedResult(3, 0.45),
-    SeedResult(4, 0.30),
-    SeedResult(5, 0.05),
-  ], Colors.blue, Duration(minutes: 30)),
+  const Seed(
+    2,
+    "Arcane Seed",
+    750,
+    [
+      SeedResult(2, 0.20),
+      SeedResult(3, 0.45),
+      SeedResult(4, 0.30),
+      SeedResult(5, 0.05),
+    ],
+    Colors.blue,
+    Duration(minutes: 30),
+  ),
 
-  const Seed(3, "Ancient Seed", 3000, [
-    SeedResult(3, 0.15),
-    SeedResult(4, 0.35),
-    SeedResult(5, 0.45),
-    SeedResult(6, 0.05),
-  ], Colors.orange, Duration(hours: 2)),
+  const Seed(
+    3,
+    "Ancient Seed",
+    3000,
+    [
+      SeedResult(3, 0.15),
+      SeedResult(4, 0.35),
+      SeedResult(5, 0.45),
+      SeedResult(6, 0.05),
+    ],
+    Colors.orange,
+    Duration(hours: 2),
+  ),
 
-  const Seed(4, "Celestial Seed", 15000, [
-    SeedResult(4, 0.10),
-    SeedResult(5, 0.30),
-    SeedResult(6, 0.60),
-  ], Colors.purple, Duration(hours: 8)),
+  const Seed(
+    4,
+    "Celestial Seed",
+    15000,
+    [SeedResult(4, 0.10), SeedResult(5, 0.30), SeedResult(6, 0.60)],
+    Colors.purple,
+    Duration(hours: 8),
+  ),
 ];
 
 class Plant {
@@ -104,14 +136,13 @@ class Recipe {
     return sorted.join("_");
   }
 }
-const List<Recipe> allRecipes = [
 
+const List<Recipe> allRecipes = [
   Recipe([0, 0, 0], "Solar Tonic", Rarity.common),
   Recipe([1, 1, 1], "Lunar Draught", Rarity.common),
   Recipe([2, 2, 2], "Stellar Essence", Rarity.common),
   Recipe([0, 1, 2], "Balanced Brew", Rarity.common),
   Recipe([0, 0, 1], "Dawn Mixture", Rarity.common),
-
 
   Recipe([0, 0, 3], "Glow Tonic", Rarity.rare),
   Recipe([1, 1, 4], "Moonmint Infusion", Rarity.rare),
@@ -120,7 +151,6 @@ const List<Recipe> allRecipes = [
   Recipe([4, 4, 4], "Mint Concentrate", Rarity.rare),
   Recipe([5, 5, 5], "Ember Core", Rarity.rare),
   Recipe([3, 4, 5], "Elemental Mix", Rarity.rare),
-
 
   Recipe([6, 6, 6], "Elixir of Rebirth", Rarity.epic),
   Recipe([5, 6, 6], "Phoenix Blood", Rarity.epic),
@@ -139,7 +169,6 @@ String getPotionName(List<int> ids) {
 
   return "Mystic Elixir";
 }
-
 
 String formatTime(int seconds) {
   if (seconds <= 0) return "Ready";
@@ -178,9 +207,6 @@ class ShopItem {
   });
 }
 
-
-
-
 class DailyQuest {
   String recipeKey;
   int reward;
@@ -193,11 +219,7 @@ class DailyQuest {
   });
 
   Map<String, dynamic> toJson() {
-    return {
-      "key": recipeKey,
-      "reward": reward,
-      "done": done,
-    };
+    return {"key": recipeKey, "reward": reward, "done": done};
   }
 
   factory DailyQuest.fromJson(Map<String, dynamic> json) {
@@ -230,10 +252,23 @@ class GameState extends ChangeNotifier {
     final plant = plants[plantId];
     return (plant.cost / 2).round();
   }
-  List<int> storage =
-      List.generate(plants.length, (_) => 0);
-  List<int> seedStorage =
-      List.generate(seeds.length, (_) => 0);
+  Timer? _ticker;
+
+  void startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  List<int> storage = List.generate(plants.length, (_) => 0);
+  List<int> seedStorage = List.generate(seeds.length, (_) => 0);
   int getPotionXp(Rarity rarity) {
     switch (rarity) {
       case Rarity.common:
@@ -244,6 +279,7 @@ class GameState extends ChangeNotifier {
         return 900;
     }
   }
+
   double xpProgress() {
     int needed = 100 * level * level;
     return (xp / needed).clamp(0.0, 1.0);
@@ -251,7 +287,7 @@ class GameState extends ChangeNotifier {
 
   bool checkLevelUp() {
     bool leveled = false;
-  
+
     while (true) {
       int needed = 100 * level * level;
       if (xp < needed) break;
@@ -259,7 +295,7 @@ class GameState extends ChangeNotifier {
       level++;
       leveled = true;
     }
-  
+
     if (leveled) notifyListeners();
     return leveled;
   }
@@ -274,13 +310,11 @@ class GameState extends ChangeNotifier {
       }
     }
 
-    if (dailyQuests.isNotEmpty &&
-        dailyQuests.every((q) => q.done)) {
+    if (dailyQuests.isNotEmpty && dailyQuests.every((q) => q.done)) {
       giveDailyChest();
     }
 
-    if (reward > 0) {
-    }
+    if (reward > 0) {}
 
     return reward;
   }
@@ -293,11 +327,9 @@ class GameState extends ChangeNotifier {
 
   void initShop() {
     shopItems = [
-
       // =========================
       // GOLD ITEMS
       // =========================
-
       ShopItem(
         id: "seed_pack_basic",
         name: "Seed Package",
@@ -340,7 +372,6 @@ class GameState extends ChangeNotifier {
       // =========================
       // CRYSTAL ITEMS
       // =========================
-
       ShopItem(
         id: "rare_seed_pack",
         name: "Rare Seed Pack",
@@ -379,14 +410,12 @@ class GameState extends ChangeNotifier {
     ];
   }
 
-
   void buySeed(int seedId) {
     final seed = seeds[seedId];
     if (gold < seed.cost) return;
 
     gold -= seed.cost;
     seedStorage[seedId]++;
-
 
     save();
     notifyListeners();
@@ -414,16 +443,14 @@ class GameState extends ChangeNotifier {
     lastQuestDay = today;
     dailyQuests.clear();
 
-
     List<Recipe> possibleQuests = List.from(allRecipes);
     possibleQuests.shuffle();
 
     int count = min(3, possibleQuests.length);
     for (int i = 0; i < count; i++) {
-      dailyQuests.add(DailyQuest(
-        recipeKey: possibleQuests[i].key,
-        reward: (i + 1) * 20,
-      ));
+      dailyQuests.add(
+        DailyQuest(recipeKey: possibleQuests[i].key, reward: (i + 1) * 20),
+      );
     }
     save();
     notifyListeners();
@@ -459,7 +486,6 @@ class GameState extends ChangeNotifier {
     notifyListeners();
   }
 
-
   void sellPotion(int slot) {
     final data = brewSlots[slot];
     if (data == null) return;
@@ -492,7 +518,7 @@ class GameState extends ChangeNotifier {
     showGoldAnimation = true;
 
     brewSlots[slot] = null;
-   
+
     if (leveled) {
       showGoldAnimation = false;
     }
@@ -502,11 +528,12 @@ class GameState extends ChangeNotifier {
 
   static const int maxGardenSlots = 10;
 
-  List<Map<String, dynamic>?> garden =
-  List.generate(maxGardenSlots, (_) => null);
+  List<Map<String, dynamic>?> garden = List.generate(
+    maxGardenSlots,
+    (_) => null,
+  );
 
-  List<Map<String, dynamic>?> brewSlots =
-  List.generate(3, (_) => null);
+  List<Map<String, dynamic>?> brewSlots = List.generate(3, (_) => null);
 
   Set<String> discovered = {};
 
@@ -515,17 +542,20 @@ class GameState extends ChangeNotifier {
   int nextGardenSlotCost() {
     if (unlockedSlots >= maxGardenSlots) return -1;
 
-    switch (unlockedSlots) {
-      case 3: return 500;
-      case 4: return 2500;
-      case 5: return 10000;
-      case 6: return 25000;
-      case 7: return 75000;
-      case 8: return 200000;
-      case 9: return 500000;
-      default: return 1000000;
-    }
+    const costs = [
+      300,      // 3rd slot
+      1500,     // 4th
+      6000,     // 5th
+      20000,    // 6th
+      60000,    // 7th
+      150000,   // 8th
+      350000,   // 9th
+      600000,   // 10th
+    ];
+
+    return costs[unlockedSlots - 2];
   }
+
 
   void unlockGardenSlot() {
     int cost = nextGardenSlotCost();
@@ -550,10 +580,14 @@ class GameState extends ChangeNotifier {
     brewSpeed = 1.0 + speedLevel * 0.25;
 
     storage = List.generate(
-        plants.length, (i) => prefs.getInt("storage_$i") ?? 0);
-    
+      plants.length,
+      (i) => prefs.getInt("storage_$i") ?? 0,
+    );
+
     seedStorage = List.generate(
-        seeds.length, (i) => prefs.getInt("seeds_$i") ?? 0);
+      seeds.length,
+      (i) => prefs.getInt("seeds_$i") ?? 0,
+    );
 
     for (int i = 0; i < maxGardenSlots; i++) {
       String? data = prefs.getString("garden_$i");
@@ -569,11 +603,9 @@ class GameState extends ChangeNotifier {
       }
     }
 
-    discovered =
-        prefs.getStringList("recipes")?.toSet() ?? {};
+    discovered = prefs.getStringList("recipes")?.toSet() ?? {};
 
     lastQuestDay = prefs.getString("lastQuestDay") ?? "";
-
 
     List<String>? questJson = prefs.getStringList("dailyQuests");
     if (questJson != null) {
@@ -585,7 +617,6 @@ class GameState extends ChangeNotifier {
     generateDailyQuestsIfNeeded();
     initShop();
     notifyListeners();
-
   }
 
   Future<void> save() async {
@@ -599,16 +630,14 @@ class GameState extends ChangeNotifier {
     for (int i = 0; i < plants.length; i++) {
       await prefs.setInt("storage_$i", storage[i]);
     }
-    
+
     for (int i = 0; i < seeds.length; i++) {
       await prefs.setInt("seeds_$i", seedStorage[i]);
     }
 
-
     for (int i = 0; i < maxGardenSlots; i++) {
       if (garden[i] != null) {
-        await prefs.setString(
-            "garden_$i", jsonEncode(garden[i]));
+        await prefs.setString("garden_$i", jsonEncode(garden[i]));
       } else {
         await prefs.remove("garden_$i");
       }
@@ -616,15 +645,13 @@ class GameState extends ChangeNotifier {
 
     for (int i = 0; i < 3; i++) {
       if (brewSlots[i] != null) {
-        await prefs.setString(
-            "brew_$i", jsonEncode(brewSlots[i]));
+        await prefs.setString("brew_$i", jsonEncode(brewSlots[i]));
       } else {
         await prefs.remove("brew_$i");
       }
     }
 
-    await prefs.setStringList(
-        "recipes", discovered.toList());
+    await prefs.setStringList("recipes", discovered.toList());
     await prefs.setString("lastQuestDay", lastQuestDay);
 
     List<String> questJson = dailyQuests
@@ -643,34 +670,34 @@ class GameState extends ChangeNotifier {
 
     garden[slot] = {
       "seedId": seedId,
-      "start": DateTime.now().millisecondsSinceEpoch
+      "start": DateTime.now().millisecondsSinceEpoch,
     };
 
     save();
     notifyListeners();
   }
 
-
   int? harvest(int slot) {
     final data = garden[slot];
     if (data == null) return null;
-  
+
     int seedId = data["seedId"];
     int start = data["start"];
-  
+
     final seed = seeds[seedId];
-  
+
     final elapsed = DateTime.now().difference(
-        DateTime.fromMillisecondsSinceEpoch(start));
-  
+      DateTime.fromMillisecondsSinceEpoch(start),
+    );
+
     int growTime = seed.growTime.inSeconds;
-  
+
     if (elapsed.inSeconds < growTime) return null;
-  
+
     double roll = Random().nextDouble();
     double sum = 0;
     int resultPlant = seed.results.first.plantId;
-  
+
     for (var r in seed.results) {
       sum += r.chance;
       if (roll <= sum) {
@@ -678,20 +705,17 @@ class GameState extends ChangeNotifier {
         break;
       }
     }
-  
+
     storage[resultPlant]++;
     garden[slot] = null;
-  
-  
+
     gainXP(getPlantXp(resultPlant));
-  
+
     save();
     notifyListeners();
-  
+
     return resultPlant;
   }
-
-
 
   Rarity getRarity(List<int> ids) {
     final sorted = List<int>.from(ids)..sort();
@@ -746,11 +770,9 @@ class GameState extends ChangeNotifier {
 
     brewSlots[slot] = {
       "plants": ids,
-      "start": DateTime
-          .now()
-          .millisecondsSinceEpoch,
+      "start": DateTime.now().millisecondsSinceEpoch,
       "time": time.inSeconds,
-      "done": false
+      "done": false,
     };
 
     save();
@@ -779,7 +801,6 @@ class GameState extends ChangeNotifier {
     return reward.round();
   }
 
-
   void giveDailyChest() {
     final r = Random().nextDouble();
 
@@ -799,36 +820,34 @@ class GameState extends ChangeNotifier {
 
   void checkBrew() {
     bool changed = false;
-  
+
     for (int i = 0; i < 3; i++) {
       final slot = brewSlots[i];
       if (slot == null) continue;
       if (slot["done"] == true) continue;
-  
+
       int start = slot["start"];
       int total = slot["time"];
-  
-      int elapsed = DateTime
-          .now()
-          .difference(
-          DateTime.fromMillisecondsSinceEpoch(start))
+
+      int elapsed = DateTime.now()
+          .difference(DateTime.fromMillisecondsSinceEpoch(start))
           .inSeconds;
-  
+
       if (elapsed >= total) {
-        List<int> ids =
-            List<int>.from(slot["plants"]);
+        List<int> ids = List<int>.from(slot["plants"]);
         ids.sort();
         discovered.add(ids.join("_"));
         slot["done"] = true;
         changed = true;
       }
     }
-  
+
     if (changed) {
       save();
       notifyListeners();
     }
   }
+}
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -843,39 +862,47 @@ class _MyAppState extends State<MyApp> {
   int screen = 0;
 
   Timer? timer;
-  
+
   @override
   void initState() {
     super.initState();
+
+    game.startTicker(); // <-- EZ KELL
+
     game.load().then((_) {
       setState(() => loaded = true);
+
       timer = Timer.periodic(
-          const Duration(seconds: 1), (_) => game.checkBrew());
+        const Duration(seconds: 1),
+            (_) => game.checkBrew(),
+      );
     });
   }
-  
+
+
   @override
   void dispose() {
     timer?.cancel();
     super.dispose();
   }
 
-
   @override
   Widget build(BuildContext context) {
     if (!loaded) {
       return const MaterialApp(
-          home: Scaffold(
-              body: Center(child: CircularProgressIndicator())));
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
     }
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: MagicColors.background,
-          cardTheme: CardThemeData(
+        cardTheme: CardThemeData(
           color: MagicColors.surface.withOpacity(0.6),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           elevation: 8,
         ),
         appBarTheme: const AppBarTheme(
@@ -903,7 +930,9 @@ class _MyAppState extends State<MyApp> {
                           value: game.xpProgress(),
                           minHeight: 6,
                           backgroundColor: Colors.grey.shade800,
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.blue,
+                          ),
                         ),
                       ),
                       Text(
@@ -916,15 +945,24 @@ class _MyAppState extends State<MyApp> {
                   actions: [
                     TextButton(
                       onPressed: () => setState(() => screen = 0),
-                      child: const Text("Brew", style: TextStyle(color: Colors.white)),
+                      child: const Text(
+                        "Brew",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                     TextButton(
                       onPressed: () => setState(() => screen = 1),
-                      child: const Text("Garden", style: TextStyle(color: Colors.white)),
+                      child: const Text(
+                        "Garden",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                     TextButton(
                       onPressed: () => setState(() => screen = 2),
-                      child: const Text("Shop", style: TextStyle(color: Colors.white)),
+                      child: const Text(
+                        "Shop",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(Icons.book),
@@ -966,8 +1004,11 @@ class _MyAppState extends State<MyApp> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.monetization_on,
-                                color: Colors.amber, size: 22),
+                            const Icon(
+                              Icons.monetization_on,
+                              color: Colors.amber,
+                              size: 22,
+                            ),
                             Text(
                               "+${game.lastGoldGain}",
                               style: const TextStyle(
@@ -981,8 +1022,11 @@ class _MyAppState extends State<MyApp> {
                         if (game.lastQuestGain > 0)
                           Row(
                             children: [
-                              const Icon(Icons.star,
-                                  color: Colors.lightBlue, size: 18),
+                              const Icon(
+                                Icons.star,
+                                color: Colors.lightBlue,
+                                size: 18,
+                              ),
                               Text(
                                 "+${game.lastQuestGain} quest",
                                 style: const TextStyle(
@@ -1012,17 +1056,97 @@ class PotionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 900;
+
+    if (isMobile) {
+      // 📱 MOBILE LAYOUT
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              MagicColors.background,
+              MagicColors.surface,
+              Color(0xFF24243E),
+            ],
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+
+              // Upgrade
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: _buildModernUpgradeCard(),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Brew pots (stackelve)
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 12,
+                children: List.generate(
+                  3,
+                      (i) => SizedBox(
+                    width: width * 0.4,
+                    child: _buildBrewingPot(context, i),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Inventory
+              SizedBox(
+                height: 300,
+                child: InventoryPanel(game),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Daily quests
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    const Text(
+                      "DAILY SCROLLS",
+                      style: TextStyle(
+                        color: MagicColors.accent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Divider(),
+                    _buildQuestList(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 🖥 DESKTOP / TABLET LAYOUT
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [MagicColors.background, MagicColors.surface, Color(0xFF24243E)],
+          colors: [
+            MagicColors.background,
+            MagicColors.surface,
+            Color(0xFF24243E),
+          ],
         ),
       ),
       child: Row(
         children: [
-          // Bal oldali panel: Küldetések és fejlesztés
           Container(
             width: 200,
             padding: const EdgeInsets.all(12),
@@ -1030,40 +1154,51 @@ class PotionScreen extends StatelessWidget {
               children: [
                 _buildModernUpgradeCard(),
                 const SizedBox(height: 20),
-                const Text("DAILY SCROLLS",
-                    style: TextStyle(color: MagicColors.accent, fontWeight: FontWeight.bold, letterSpacing: 2)),
+                const Text(
+                  "DAILY SCROLLS",
+                  style: TextStyle(
+                    color: MagicColors.accent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const Divider(color: MagicColors.accent),
                 Expanded(child: _buildQuestList()),
               ],
             ),
           ),
-
-          // Középső rész: Az üstök (Brewing Slots)
           Expanded(
             flex: 3,
             child: Column(
               children: [
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Text("ALCHEMY POTS",
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(blurRadius: 10, color: MagicColors.crystal)])),
+                  child: Text(
+                    "ALCHEMY POTS",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
                 Expanded(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(3, (i) => _buildBrewingPot(context, i)),
+                    children: List.generate(
+                      3,
+                          (i) => _buildBrewingPot(context, i),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-
-          // Jobb oldali panel: Raktár (Inventory)
           SizedBox(width: 250, child: InventoryPanel(game)),
         ],
       ),
     );
   }
+
 
   // Ezt a metódust használd a PotionPot megjelenítéséhez
   Widget _buildBrewingPot(BuildContext context, int i) {
@@ -1071,12 +1206,17 @@ class PotionScreen extends StatelessWidget {
     bool isUnlocked = i < game.unlockedSlots;
 
     return Container(
-      width: 160,
+      width: MediaQuery.of(context).size.width < 900 ? 140 : 160,
+
       margin: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: isUnlocked ? MagicColors.crystal.withOpacity(0.3) : Colors.grey),
+        border: Border.all(
+          color: isUnlocked
+              ? MagicColors.crystal.withOpacity(0.3)
+              : Colors.grey,
+        ),
       ),
       child: isUnlocked ? _potContent(context, i, slot) : _lockedPot(),
     );
@@ -1085,29 +1225,59 @@ class PotionScreen extends StatelessWidget {
   Widget _potContent(BuildContext context, int i, dynamic slot) {
     if (slot == null) {
       return InkWell(
-        onTap: () => showDialog(context: context, builder: (_) => brewDialog(context, i)),
+        onTap: () => showDialog(
+          context: context,
+          builder: (_) => brewDialog(context, i),
+        ),
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_circle_outline, size: 50, color: MagicColors.crystal),
+            Icon(
+              Icons.add_circle_outline,
+              size: 50,
+              color: MagicColors.crystal,
+            ),
             SizedBox(height: 10),
-            Text("START BREW", style: TextStyle(color: MagicColors.crystal, fontWeight: FontWeight.bold)),
+            Text(
+              "START BREW",
+              style: TextStyle(
+                color: MagicColors.crystal,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       );
     }
 
-    // Ha épp fő valami
     bool done = slot["done"] == true;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Stack(
           alignment: Alignment.center,
           children: [
-            // Csillogó effekt az ikon mögött
-            if (done) Container(width: 80, height: 80, decoration: BoxDecoration(shape: BoxShape.circle, boxShadow: [BoxShadow(color: MagicColors.accent.withOpacity(0.5), blurRadius: 20, spreadRadius: 5)])),
-            Icon(Icons.local_fire_department, size: 70, color: done ? MagicColors.accent : Colors.orangeAccent),
+            if (done)
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: MagicColors.accent.withOpacity(0.5),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+              ),
+            Icon(
+              Icons.local_fire_department,
+              size: 70,
+              color: done ? MagicColors.accent : Colors.orangeAccent,
+            ),
           ],
         ),
         const SizedBox(height: 15),
@@ -1120,31 +1290,69 @@ class PotionScreen extends StatelessWidget {
               color: MagicColors.crystal,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
+
+          Text(
+            _brewRemainingTime(slot),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white70,
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.white10),
-            onPressed: game.instantBrewTokens > 0 ? () => game.useInstantBrew(i) : null,
-            child: Text("⚡ ${game.instantBrewTokens}", style: const TextStyle(color: MagicColors.crystal)),
+            onPressed: game.instantBrewTokens > 0
+                ? () => game.useInstantBrew(i)
+                : null,
+            child: Text(
+              "⚡ ${game.instantBrewTokens}",
+              style: const TextStyle(color: MagicColors.crystal),
+            ),
           ),
         ] else
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: MagicColors.accent, foregroundColor: Colors.black),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MagicColors.accent,
+              foregroundColor: Colors.black,
+            ),
             onPressed: () => game.sellPotion(i),
-            child: const Text("COLLECT", style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              "COLLECT",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
       ],
     );
   }
 
   Widget _lockedPot() {
-    return const Center(child: Icon(Icons.lock_outline, color: Colors.white24, size: 40));
+    return const Center(
+      child: Icon(Icons.lock_outline, color: Colors.white24, size: 40),
+    );
   }
 
   double _calculateProgress(dynamic slot) {
     int start = slot["start"];
     int total = slot["time"];
-    int elapsed = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(start)).inSeconds;
+    int elapsed = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(start))
+        .inSeconds;
     return (elapsed / total).clamp(0.0, 1.0);
+  }
+  String _brewRemainingTime(dynamic slot) {
+    int start = slot["start"];
+    int total = slot["time"];
+
+    int elapsed = DateTime.now()
+        .difference(DateTime.fromMillisecondsSinceEpoch(start))
+        .inSeconds;
+
+    int remaining = (total - elapsed).clamp(0, total);
+
+    return formatTime(remaining);
   }
 
   // A korábbi upgrade gombodat tedd egy szebb Card-ba
@@ -1154,12 +1362,23 @@ class PotionScreen extends StatelessWidget {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            const Text("SPEED", style: TextStyle(fontSize: 12, color: Colors.white70)),
-            Text("Lv. ${game.speedLevel}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text(
+              "SPEED",
+              style: TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            Text(
+              "Lv. ${game.speedLevel}",
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 10),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: MagicColors.crystal, foregroundColor: Colors.black),
-              onPressed: game.gold >= game.speedUpgradeCost() ? game.upgradeSpeed : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MagicColors.crystal,
+                foregroundColor: Colors.black,
+              ),
+              onPressed: game.gold >= game.speedUpgradeCost()
+                  ? game.upgradeSpeed
+                  : null,
               child: Text("${game.speedUpgradeCost()}g"),
             ),
           ],
@@ -1171,24 +1390,37 @@ class PotionScreen extends StatelessWidget {
   Widget _buildQuestList() {
     return ListView(
       children: game.dailyQuests.map((q) {
-        final recipe = allRecipes.firstWhere((r) => r.key == q.recipeKey), orElse: () => allRecipes.first,
-        ),
+        final recipe = allRecipes.firstWhere(
+          (r) => r.key == q.recipeKey,
+          orElse: () => allRecipes.first,
+        );
+
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: q.done ? Colors.green.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+            color: q.done
+                ? Colors.green.withOpacity(0.2)
+                : Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(10),
           ),
           child: ListTile(
             dense: true,
-            title: Text(recipe.name, style: TextStyle(fontSize: 12, color: q.done ? Colors.green : Colors.white)),
-            trailing: Text("${q.reward}g", style: const TextStyle(color: MagicColors.accent, fontSize: 10)),
+            title: Text(
+              recipe.name,
+              style: TextStyle(
+                fontSize: 12,
+                color: q.done ? Colors.green : Colors.white,
+              ),
+            ),
+            trailing: Text(
+              "${q.reward}g",
+              style: const TextStyle(color: MagicColors.accent, fontSize: 10),
+            ),
           ),
         );
       }).toList(),
     );
   }
-
 
   Widget brewDialog(BuildContext context, int slot) {
     List<int> selected = [];
@@ -1203,11 +1435,9 @@ class PotionScreen extends StatelessWidget {
             child: ListView(
               children: plants.map((p) {
                 return ListTile(
-                  title: Text(
-                      "${p.name} (${game.storage[p.id]})"),
+                  title: Text("${p.name} (${game.storage[p.id]})"),
                   onTap: () {
-                    if (game.storage[p.id] > 0 &&
-                        selected.length < 3) {
+                    if (game.storage[p.id] > 0 && selected.length < 3) {
                       selected.add(p.id);
                       setState(() {});
                     }
@@ -1221,19 +1451,18 @@ class PotionScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: selected.length == 3
                   ? () {
-                game.startBrew(slot, selected);
-                Navigator.pop(context);
-              }
+                      game.startBrew(slot, selected);
+                      Navigator.pop(context);
+                    }
                   : null,
               child: const Text("BREW"),
-            )
+            ),
           ],
         );
       },
     );
   }
 }
-
 
 class InventoryPanel extends StatelessWidget {
   final GameState game;
@@ -1250,7 +1479,10 @@ class InventoryPanel extends StatelessWidget {
         children: [
           // --- MAGOK (SEEDS) SZEKCIÓ ---
           const ListTile(
-            leading: Icon(Icons.grass, color: Colors.brown), // 'grass' biztosan létezik
+            leading: Icon(
+              Icons.grass,
+              color: Colors.brown,
+            ), // 'grass' biztosan létezik
             title: Text("Seeds", style: TextStyle(fontWeight: FontWeight.bold)),
           ),
           const Divider(height: 1),
@@ -1264,7 +1496,10 @@ class InventoryPanel extends StatelessWidget {
               dense: true,
               leading: Icon(Icons.circle, color: seed.color, size: 12),
               title: Text(seed.name),
-              trailing: Text("$amount", style: const TextStyle(fontWeight: FontWeight.bold)),
+              trailing: Text(
+                "$amount",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             );
           }),
 
@@ -1274,7 +1509,10 @@ class InventoryPanel extends StatelessWidget {
           // --- LEARATOTT NÖVÉNYEK (PLANTS) SZEKCIÓ ---
           const ListTile(
             leading: Icon(Icons.inventory_2, color: Colors.green),
-            title: Text("Plants", style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              "Plants",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
           const Divider(height: 1),
           // A globális 'plants' listát használjuk a raktárhoz (storage)
@@ -1283,7 +1521,11 @@ class InventoryPanel extends StatelessWidget {
 
             return ListTile(
               dense: true,
-              leading: const Icon(Icons.local_florist, color: Colors.green, size: 18), // Javítva: kisbetűs 'l'
+              leading: const Icon(
+                Icons.local_florist,
+                color: Colors.green,
+                size: 18,
+              ), // Javítva: kisbetűs 'l'
               title: Text(plant.name),
               trailing: Text(
                 "$amount",
@@ -1318,9 +1560,7 @@ class GardenScreen extends StatelessWidget {
             width: 100,
             height: 100,
             child: ElevatedButton(
-              onPressed: game.gold >= cost
-                  ? game.unlockGardenSlot
-                  : null,
+              onPressed: game.gold >= cost ? game.unlockGardenSlot : null,
               child: Text(
                 cost < 0 ? "MAX" : "Unlock\n${cost}g",
                 textAlign: TextAlign.center,
@@ -1354,8 +1594,7 @@ class GardenScreen extends StatelessWidget {
             DateTime.fromMillisecondsSinceEpoch(start),
           );
 
-          double progress =
-              elapsed.inMilliseconds / s.growTime.inMilliseconds;
+          double progress = elapsed.inMilliseconds / s.growTime.inMilliseconds;
 
           int remainingSeconds = (s.growTime.inSeconds - elapsed.inSeconds)
               .clamp(0, s.growTime.inSeconds);
@@ -1366,14 +1605,15 @@ class GardenScreen extends StatelessWidget {
               height: 100,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: s.color.withOpacity(0.6)),
+                  backgroundColor: s.color.withOpacity(0.6),
+                ),
                 onPressed: () {
                   final beforeLevel = game.level;
                   final plantId = game.harvest(i);
-                
+
                   if (plantId != null) {
                     final plant = plants[plantId];
-                
+
                     showDialog(
                       context: context,
                       builder: (_) => AlertDialog(
@@ -1385,11 +1625,11 @@ class GardenScreen extends StatelessWidget {
                           TextButton(
                             onPressed: () => Navigator.pop(context),
                             child: const Text("OK"),
-                          )
+                          ),
                         ],
                       ),
                     );
-                
+
                     if (game.level > beforeLevel) {
                       showDialog(
                         context: context,
@@ -1409,36 +1649,33 @@ class GardenScreen extends StatelessWidget {
                     }
                   }
                 },
-                child: Text(
-                  "Harvest\n${s.name}",
-                  textAlign: TextAlign.center,
-                ),
+                child: Text("Harvest\n${s.name}", textAlign: TextAlign.center),
               ),
             );
           }
-
-
 
           return SizedBox(
             width: 100,
             height: 100,
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: s.color.withOpacity(0.5),
-                ),
+                border: Border.all(color: s.color.withOpacity(0.5)),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Growing",
-                      style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  const Text(
+                    "Growing",
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
                   Text(
                     s.name,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        color: s.color, fontWeight: FontWeight.bold),
+                      color: s.color,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -1453,7 +1690,6 @@ class GardenScreen extends StatelessWidget {
                       color: s.color,
                     ),
                   ),
-
                 ],
               ),
             ),
@@ -1486,10 +1722,7 @@ class GardenScreen extends StatelessWidget {
               child: Text(
                 "${s.name}\n${s.cost}g",
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
             );
           }),
@@ -1498,6 +1731,7 @@ class GardenScreen extends StatelessWidget {
     );
   }
 }
+
 class RecipeBookScreen extends StatelessWidget {
   final GameState game;
 
@@ -1509,12 +1743,10 @@ class RecipeBookScreen extends StatelessWidget {
       appBar: AppBar(title: const Text("Potion Book")),
       body: ListView(
         children: allRecipes.map((recipe) {
-          final discovered =
-          game.discovered.contains(recipe.key);
+          final discovered = game.discovered.contains(recipe.key);
 
           return Card(
-            margin: const EdgeInsets.symmetric(
-                horizontal: 12, vertical: 6),
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: ListTile(
               leading: Icon(
                 Icons.local_drink,
@@ -1525,9 +1757,7 @@ class RecipeBookScreen extends StatelessWidget {
               ),
               title: Text(
                 discovered ? recipe.name : "????",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               subtitle: Text(
                 discovered
@@ -1549,19 +1779,21 @@ class ShopScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final goldItems = game.shopItems
+        .where((i) => i.currency == ShopCurrency.gold)
+        .toList();
 
-    final goldItems =
-    game.shopItems.where((i) => i.currency == ShopCurrency.gold).toList();
-
-    final crystalItems =
-    game.shopItems.where((i) => i.currency == ShopCurrency.crystal).toList();
+    final crystalItems = game.shopItems
+        .where((i) => i.currency == ShopCurrency.crystal)
+        .toList();
 
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-
-        const Text("Gold Shop",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text(
+          "Gold Shop",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
 
         const SizedBox(height: 8),
 
@@ -1569,8 +1801,10 @@ class ShopScreen extends StatelessWidget {
 
         const SizedBox(height: 20),
 
-        const Text("Crystal Shop",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text(
+          "Crystal Shop",
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
 
         const SizedBox(height: 8),
 
