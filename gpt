@@ -1,3 +1,6 @@
+te egy expert flutter dart developer vagy és segítesz kódot írni/változtatni. A játékomban jelenleg a seed inventory és plant inventory a brew screenen vannak. Azt akarom hogy a seed inventory a garden screenen legyen. Hogy csináljam? Írd le a kódom alapján: https://github.com/davidszente94-byte/Wizard-potion-shop/edit/main/wizard%20potion%20shop%2002.20.
+
+
 Seed getRandomSeedFromPackage() {
   final rand = Random().nextDouble();
 
