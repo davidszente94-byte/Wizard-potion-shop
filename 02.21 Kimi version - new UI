@@ -876,8 +876,7 @@ class GameState extends ChangeNotifier {
 
     generateDailyQuestsIfNeeded();
     initShop();
-    gold += 10000;
-    crystals += 100;
+
     notifyListeners();
   }
 
