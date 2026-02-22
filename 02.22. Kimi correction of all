@@ -1,0 +1,3257 @@
+import 'dart:math';
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+  runApp(const MyApp());
+}
+
+// ==========================================
+// THEME & COLORS - Fantasy Medieval Theme
+// ==========================================
+class MagicColors {
+  // Deep mystical backgrounds
+  static const Color background = Color(0xFF1A0F2E);
+  static const Color surface = Color(0xFF2D1B4E);
+  static const Color surfaceLight = Color(0xFF3D2B5E);
+
+  // Gold & Currency
+  static const Color gold = Color(0xFFFFD700);
+  static const Color goldDark = Color(0xFFB8860B);
+  static const Color crystal = Color(0xFF00E5FF);
+  static const Color crystalDark = Color(0xFF0099AA);
+
+  // Nature colors for garden
+  static const Color earth = Color(0xFF8B4513);
+  static const Color earthLight = Color(0xFFA0522D);
+  static const Color leaf = Color(0xFF228B22);
+  static const Color leafLight = Color(0xFF32CD32);
+
+  // Brewing colors
+  static const Color potionRed = Color(0xFFDC143C);
+  static const Color potionBlue = Color(0xFF4169E1);
+  static const Color potionGreen = Color(0xFF32CD32);
+  static const Color potionPurple = Color(0xFF9932CC);
+  static const Color fire = Color(0xFFFF4500);
+
+  // Text
+  static const Color textLight = Color(0xFFF0E6FF);
+  static const Color textMuted = Color(0xFFB8A9C9);
+
+  // Rarity colors
+  static const Color common = Color(0xFF9E9E9E);
+  static const Color rare = Color(0xFF2196F3);
+  static const Color epic = Color(0xFF9C27B0);
+}
+
+// ==========================================
+// RESOURCE BAR WIDGET - Always visible
+// ==========================================
+class ResourceBar extends StatelessWidget {
+  final GameState game;
+
+  const ResourceBar({super.key, required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            MagicColors.surface.withOpacity(0.9),
+            MagicColors.background.withOpacity(0.9),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: MagicColors.gold.withOpacity(0.3),
+            width: 2,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Top row: Gold, Crystals, Level
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Gold
+                _resourceItem(
+                  icon: Icons.monetization_on,
+                  color: MagicColors.gold,
+                  value: game.gold,
+                  label: 'Gold',
+                ),
+
+                // Level & XP
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Level ${game.level}',
+                          style: const TextStyle(
+                            color: MagicColors.textLight,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: MagicColors.gold.withOpacity(0.3),
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: game.xpProgress(),
+                              backgroundColor: Colors.transparent,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                MagicColors.crystal,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${game.xp}/${game.neededExp(game.level)} XP',
+                          style: const TextStyle(
+                            color: MagicColors.textMuted,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Crystals
+                _resourceItem(
+                  icon: Icons.diamond,
+                  color: MagicColors.crystal,
+                  value: game.crystals,
+                  label: 'Crystal',
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Bottom row: Tokens and charges
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _smallResourceItem(
+                  icon: Icons.bolt,
+                  color: Colors.yellow,
+                  value: game.instantBrewTokens,
+                  label: 'Brew',
+                ),
+                const SizedBox(width: 16),
+                _smallResourceItem(
+                  icon: Icons.eco,
+                  color: MagicColors.leaf,
+                  value: game.instantGrowTokens,
+                  label: 'Grow',
+                ),
+                const SizedBox(width: 16),
+                _smallResourceItem(
+                  icon: Icons.auto_fix_high,
+                  color: Colors.purple,
+                  value: game.doubleXpCharges,
+                  label: '2x XP',
+                ),
+                const SizedBox(width: 16),
+                _smallResourceItem(
+                  icon: Icons.attach_money,
+                  color: Colors.orange,
+                  value: game.doubleGoldCharges,
+                  label: '2x Gold',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _resourceItem({
+    required IconData icon,
+    required Color color,
+    required int value,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.2),
+            color.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 6),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _formatNumber(value),
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  shadows: [
+                    Shadow(
+                      color: color.withOpacity(0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color.withOpacity(0.7),
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _smallResourceItem({
+    required IconData icon,
+    required Color color,
+    required int value,
+    required String label,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 14),
+        const SizedBox(width: 4),
+        Text(
+          '$value',
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(width: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            color: MagicColors.textMuted,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatNumber(int n) {
+    if (n >= 1000000) return '${(n/1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n/1000).toStringAsFixed(1)}k';
+    return n.toString();
+  }
+}
+
+// ==========================================
+// GAME DATA CLASSES (unchanged logic)
+// ==========================================
+class SeedResult {
+  final int plantId;
+  final double chance;
+  const SeedResult(this.plantId, this.chance);
+}
+
+class Seed {
+  final int id;
+  final String name;
+  final int cost;
+  final List<SeedResult> results;
+  final Color color;
+  final Duration growTime;
+  final String icon;
+  final String description;
+
+  const Seed({
+    required this.id,
+    required this.name,
+    required this.cost,
+    required this.results,
+    required this.color,
+    required this.growTime,
+    this.icon = '🌱',
+    this.description = '',
+  });
+}
+
+final List<Seed> seeds = [
+  const Seed(
+    id: 0,
+    name: "Wild Seed",
+    cost: 0,
+    results: [SeedResult(0, 0.85), SeedResult(1, 0.14), SeedResult(2, 0.01)],
+    color: Colors.green,
+    growTime: Duration(seconds: 30),
+    icon: '🌿',
+    description: 'Basic wild growth',
+  ),
+  const Seed(
+    id: 1,
+    name: "Luminous",
+    cost: 150,
+    results: [
+      SeedResult(1, 0.45),
+      SeedResult(2, 0.40),
+      SeedResult(3, 0.14),
+      SeedResult(4, 0.01),
+    ],
+    color: Colors.yellow,
+    growTime: Duration(minutes: 5),
+    icon: '⭐',
+    description: 'Glows with inner light',
+  ),
+  const Seed(
+    id: 2,
+    name: "Arcane",
+    cost: 750,
+    results: [
+      SeedResult(2, 0.20),
+      SeedResult(3, 0.45),
+      SeedResult(4, 0.30),
+      SeedResult(5, 0.05),
+    ],
+    color: Colors.blue,
+    growTime: Duration(minutes: 30),
+    icon: '🔮',
+    description: 'Magical essence contained',
+  ),
+  const Seed(
+    id: 3,
+    name: "Ancient",
+    cost: 3000,
+    results: [
+      SeedResult(3, 0.15),
+      SeedResult(4, 0.35),
+      SeedResult(5, 0.45),
+      SeedResult(6, 0.05),
+    ],
+    color: Colors.orange,
+    growTime: Duration(hours: 2),
+    icon: '🏺',
+    description: 'From forgotten times',
+  ),
+  const Seed(
+    id: 4,
+    name: "Celestial",
+    cost: 15000,
+    results: [SeedResult(4, 0.10), SeedResult(5, 0.30), SeedResult(6, 0.60)],
+    color: Colors.purple,
+    growTime: Duration(hours: 8),
+    icon: '🌙',
+    description: 'Stardust infused',
+  ),
+];
+
+class Plant {
+  final int id;
+  final String name;
+  final int cost;
+  final Duration growTime;
+  final String icon;
+  final Color color;
+  final int xpValue; // Added for balanced XP
+
+  const Plant({
+    required this.id,
+    required this.name,
+    required this.cost,
+    required this.growTime,
+    required this.xpValue,
+    this.icon = '🌾',
+    this.color = Colors.green,
+  });
+}
+
+final List<Plant> plants = [
+  const Plant(id: 0, name: "Sunleaf", cost: 12, growTime: Duration(seconds: 30), xpValue: 5, icon: '🌻', color: Color(0xFFFFD700)),
+  const Plant(id: 1, name: "Moonpetal", cost: 50, growTime: Duration(minutes: 2), xpValue: 12, icon: '🌸', color: Color(0xFFFFC0CB)),
+  const Plant(id: 2, name: "Starroot", cost: 180, growTime: Duration(minutes: 10), xpValue: 25, icon: '⭐', color: Color(0xFFFFA500)),
+  const Plant(id: 3, name: "Frost Fern", cost: 600, growTime: Duration(hours: 1), xpValue: 45, icon: '❄️', color: Color(0xFF87CEEB)),
+  const Plant(id: 4, name: "Mint Crystal", cost: 2500, growTime: Duration(hours: 4), xpValue: 80, icon: '💎', color: Color(0xFF00CED1)),
+  const Plant(id: 5, name: "Ember Blossom", cost: 8500, growTime: Duration(hours: 8), xpValue: 150, icon: '🔥', color: Color(0xFFFF4500)),
+  const Plant(id: 6, name: "Phoenix Herb", cost: 45000, growTime: Duration(hours: 24), xpValue: 300, icon: '🦅', color: Color(0xFFFF1493)),
+];
+
+enum Rarity { common, rare, epic }
+
+class Recipe {
+  final List<int> ids;
+  final String name;
+  final Rarity rarity;
+  final String icon;
+
+  const Recipe(this.ids, this.name, this.rarity, {this.icon = '🧪'});
+
+  String get key {
+    final sorted = List<int>.from(ids)..sort();
+    return sorted.join("_");
+  }
+}
+
+const List<Recipe> allRecipes = [
+  Recipe([0, 0, 0], "Solar Tonic", Rarity.common, icon: '☀️'),
+  Recipe([1, 1, 1], "Lunar Draught", Rarity.common, icon: '🌙'),
+  Recipe([2, 2, 2], "Stellar Essence", Rarity.common, icon: '⭐'),
+  Recipe([0, 1, 2], "Balanced Brew", Rarity.common, icon: '⚖️'),
+  Recipe([0, 0, 1], "Dawn Mixture", Rarity.common, icon: '🌅'),
+  Recipe([0, 0, 3], "Glow Tonic", Rarity.rare, icon: '✨'),
+  Recipe([1, 1, 4], "Moonmint Infusion", Rarity.rare, icon: '🌿'),
+  Recipe([2, 2, 5], "Ember Essence", Rarity.rare, icon: '🔥'),
+  Recipe([3, 3, 3], "Fern Extract", Rarity.rare, icon: '🌲'),
+  Recipe([4, 4, 4], "Mint Concentrate", Rarity.rare, icon: '❄️'),
+  Recipe([5, 5, 5], "Ember Core", Rarity.rare, icon: '💥'),
+  Recipe([3, 4, 5], "Elemental Mix", Rarity.rare, icon: '🌍'),
+  Recipe([6, 6, 6], "Elixir of Rebirth", Rarity.epic, icon: '🦋'),
+  Recipe([5, 6, 6], "Phoenix Blood", Rarity.epic, icon: '🩸'),
+  Recipe([4, 6, 6], "Celestial Flame", Rarity.epic, icon: '🔮'),
+];
+
+String getPotionName(List<int> ids) {
+  final sorted = List<int>.from(ids)..sort();
+  final key = sorted.join("_");
+  for (final recipe in allRecipes) {
+    if (recipe.key == key) return recipe.name;
+  }
+  return "Mystic Elixir";
+}
+
+String formatTime(int seconds) {
+  if (seconds <= 0) return "Ready";
+  if (seconds < 60) return "$seconds sec";
+  int minutes = (seconds / 60).ceil();
+  if (minutes < 60) return "$minutes min";
+  int hours = (minutes / 60).ceil();
+  return "$hours h";
+}
+
+enum ShopCurrency { gold, crystal }
+
+class ShopItem {
+  final String id;
+  final String name;
+  final String description;
+  final int price;
+  final ShopCurrency currency;
+  final void Function(GameState) onBuy;
+  final IconData icon;
+  final Color color;
+
+  ShopItem({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.price,
+    required this.currency,
+    required this.onBuy,
+    this.icon = Icons.shopping_bag,
+    this.color = Colors.white,
+  });
+}
+
+class DailyQuest {
+  String recipeKey;
+  int reward;
+  bool done;
+
+  DailyQuest({
+    required this.recipeKey,
+    required this.reward,
+    this.done = false,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {"key": recipeKey, "reward": reward, "done": done};
+  }
+
+  factory DailyQuest.fromJson(Map<String, dynamic> json) {
+    return DailyQuest(
+      recipeKey: json["key"],
+      reward: json["reward"],
+      done: json["done"],
+    );
+  }
+}
+
+// ==========================================
+// GAME STATE
+// ==========================================
+class GameState extends ChangeNotifier {
+  List<ShopItem> shopItems = [];
+  int gold = 0;
+  int crystals = 0;
+  int speedLevel = 0;
+  int level = 1;
+  int xp = 0;
+  int instantBrewTokens = 0;
+  int instantGrowTokens = 0; // New: instant grow tokens
+  int doubleXpCharges = 0;
+  int doubleGoldCharges = 0;
+  double brewSpeed = 1.0;
+  int unlockedSlots = 3;
+  int unlockedBrewSlots = 2; // Start with 2, max 5
+  int lastGoldGain = 0;
+  int lastQuestGain = 0;
+  bool showGoldAnimation = false;
+  List<DailyQuest> dailyQuests = [];
+  String lastQuestDay = "";
+  bool dailyQuestsCompletedToday = false; // Track if bonus claimed
+
+  Timer? _ticker;
+  Timer? brewingTimer;
+  Timer? growingTimer;
+
+  List<int> storage = List.generate(plants.length, (_) => 0);
+  List<int> seedStorage = List.generate(seeds.length, (_) => 0);
+
+  static const int maxGardenSlots = 10;
+  static const int maxBrewSlots = 5;
+  List<Map<String, dynamic>?> garden = List.generate(maxGardenSlots, (_) => null);
+  List<Map<String, dynamic>?> brewSlots = List.generate(maxBrewSlots, (_) => null);
+  Set<String> discovered = {};
+  late SharedPreferences prefs;
+
+  void startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  int getPlantXp(int plantId) {
+    return plants[plantId].xpValue; // Use balanced XP values
+  }
+
+  int getPotionXp(Rarity rarity) {
+    switch (rarity) {
+      case Rarity.common: return 40; // Reduced from 80
+      case Rarity.rare: return 120;  // Reduced from 250
+      case Rarity.epic: return 400; // Reduced from 900
+    }
+  }
+
+  int neededExp(int level) {
+    // Smoother curve for 1-month progression
+    return (100 + (pow(level, 1.8) * 80)).round();
+  }
+
+  double xpProgress() {
+    return (xp / neededExp(level)).clamp(0.0, 1.0);
+  }
+
+  bool checkLevelUp() {
+    bool leveled = false;
+    int levelsGained = 0;
+    while (true) {
+      int needed = neededExp(level);
+      if (xp < needed) break;
+      xp -= needed;
+      level++;
+      levelsGained++;
+      leveled = true;
+    }
+    if (levelsGained > 0) {
+      crystals += levelsGained; // 1 crystal per level
+    }
+    if (leveled) notifyListeners();
+    return leveled;
+  }
+
+  Seed getRandomSeed() {
+    final rand = Random().nextDouble();
+    int selectedId;
+    if (rand < 0.55) {
+      selectedId = 1;
+    } else if (rand < 0.85) {
+      selectedId = 2;
+    } else {
+      selectedId = 3;
+    }
+    return seeds.firstWhere((s) => s.id == selectedId);
+  }
+
+  void buyRandomSeed() {
+    const randomSeedPrice = 2500; // Increased from 720
+    if (gold < randomSeedPrice) return;
+    gold -= randomSeedPrice;
+    final seed = getRandomSeed();
+    addSeedToInventory(seed);
+    notifyListeners();
+  }
+
+  void addSeedToInventory(Seed seed) {
+    seedStorage[seed.id]++;
+    save();
+    notifyListeners();
+  }
+
+  void initShop() {
+    shopItems = [
+      // === GOLD ITEMS ===
+      ShopItem(
+        id: "seed_pack_basic",
+        name: "Wild Seed Pack",
+        description: "10x Wild Seeds (Free to plant)",
+        price: 500, // Increased from 200
+        currency: ShopCurrency.gold,
+        onBuy: (g) {
+          g.seedStorage[0] += 10;
+        },
+        icon: Icons.grass,
+        color: Colors.green,
+      ),
+      ShopItem(
+        id: "random_seed_single",
+        name: "Mystery Seed",
+        description: "1 random tier 1-3 seed",
+        price: 2500, // Same as old buyRandomSeed
+        currency: ShopCurrency.gold,
+        onBuy: (g) {
+          final seed = g.getRandomSeed();
+          g.seedStorage[seed.id]++;
+        },
+        icon: Icons.help_outline,
+        color: Colors.orange,
+      ),
+      ShopItem(
+        id: "plant_pack_small",
+        name: "Small Plant Bundle",
+        description: "5 random tier 1-3 plants",
+        price: 1200, // Increased from 350
+        currency: ShopCurrency.gold,
+        onBuy: (g) {
+          for (int i = 0; i < 5; i++) {
+            int randomPlant = Random().nextInt(4); // Only tiers 0-3
+            g.storage[randomPlant]++;
+          }
+        },
+        icon: Icons.local_florist,
+        color: Colors.pink,
+      ),
+      ShopItem(
+        id: "plant_pack_large",
+        name: "Premium Plant Crate",
+        description: "3 random tier 3-5 plants",
+        price: 8000,
+        currency: ShopCurrency.gold,
+        onBuy: (g) {
+          for (int i = 0; i < 3; i++) {
+            int randomPlant = 3 + Random().nextInt(3); // Tiers 3-5
+            g.storage[randomPlant]++;
+          }
+        },
+        icon: Icons.inventory_2,
+        color: Colors.purple,
+      ),
+      ShopItem(
+        id: "brew_speed_upgrade",
+        name: "Brewing Speed Upgrade",
+        description: "Permanently +25% brewing speed",
+        price: speedUpgradeCost(),
+        currency: ShopCurrency.gold,
+        onBuy: (g) => g.upgradeSpeed(),
+        icon: Icons.speed,
+        color: MagicColors.crystal,
+      ),
+
+      // === CRYSTAL ITEMS ===
+      ShopItem(
+        id: "instant_brew_token",
+        name: "Instant Brew Token",
+        description: "Skip brew time instantly",
+        price: 5, // Changed to 5 crystals
+        currency: ShopCurrency.crystal,
+        onBuy: (g) => g.instantBrewTokens++,
+        icon: Icons.bolt,
+        color: Colors.yellow,
+      ),
+      ShopItem(
+        id: "instant_grow_token",
+        name: "Instant Grow Token",
+        description: "Skip plant growth instantly",
+        price: 5, // 5 crystals
+        currency: ShopCurrency.crystal,
+        onBuy: (g) => g.instantGrowTokens++,
+        icon: Icons.eco,
+        color: MagicColors.leaf,
+      ),
+      ShopItem(
+        id: "rare_seed_pack",
+        name: "Rare Seed Pack",
+        description: "3 high tier seeds (Tiers 2-4)",
+        price: 35, // Increased from 25
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          g.seedStorage[2]++;
+          g.seedStorage[3]++;
+          g.seedStorage[4]++;
+        },
+        icon: Icons.auto_awesome,
+        color: Colors.purple,
+      ),
+      ShopItem(
+        id: "epic_seed_pack",
+        name: "Epic Seed Pack",
+        description: "2 Ancient + 1 Celestial Seed",
+        price: 80,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          g.seedStorage[3] += 2;
+          g.seedStorage[4]++;
+        },
+        icon: Icons.stars,
+        color: Colors.orange,
+      ),
+      ShopItem(
+        id: "xp_boost",
+        name: "XP Boost (5 brews)",
+        description: "Double XP for next 5 potions",
+        price: 45, // Increased from 40
+        currency: ShopCurrency.crystal,
+        onBuy: (g) => g.doubleXpCharges += 5,
+        icon: Icons.trending_up,
+        color: Colors.blue,
+      ),
+      ShopItem(
+        id: "gold_boost",
+        name: "Gold Boost (5 sales)",
+        description: "Double Gold for next 5 potions",
+        price: 40,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) => g.doubleGoldCharges += 5,
+        icon: Icons.attach_money,
+        color: Colors.orange,
+      ),
+      ShopItem(
+        id: "starter_bundle",
+        name: "Starter Bundle",
+        description: "5 Brew Tokens + 3 Rare Seeds",
+        price: 85, // Increased from 75
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          g.instantBrewTokens += 5;
+          g.seedStorage[2] += 3;
+        },
+        icon: Icons.card_giftcard,
+        color: Colors.red,
+      ),
+      ShopItem(
+        id: "mega_bundle",
+        name: "Alchemist's Chest",
+        description: "10 Tokens + 5 Grow Tokens + 2x Boosts",
+        price: 150,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          g.instantBrewTokens += 10;
+          g.instantGrowTokens += 5;
+          g.doubleXpCharges += 5;
+          g.doubleGoldCharges += 5;
+        },
+        icon: Icons.workspace_premium,
+        color: MagicColors.gold,
+      ),
+    ];
+  }
+
+  void buySeed(int seedId) {
+    final seed = seeds[seedId];
+    if (gold < seed.cost) return;
+    gold -= seed.cost;
+    seedStorage[seedId]++;
+    save();
+    notifyListeners();
+  }
+
+  List<String> buyShopItemWithPopup(ShopItem item) {
+    if (item.currency == ShopCurrency.gold) {
+      if (gold < item.price) return [];
+      gold -= item.price;
+    } else {
+      if (crystals < item.price) return [];
+      crystals -= item.price;
+    }
+    item.onBuy(this);
+
+    // Build proper reward messages
+    List<String> received = [];
+
+    // Check what was actually added by comparing before/after
+    // For simplicity, we'll track specific items
+    if (item.id == "instant_brew_token") {
+      received.add("1x Instant Brew Token");
+    } else if (item.id == "instant_grow_token") {
+      received.add("1x Instant Grow Token");
+    } else if (item.id == "xp_boost") {
+      received.add("5x Double XP Charges");
+    } else if (item.id == "gold_boost") {
+      received.add("5x Double Gold Charges");
+    } else if (item.id == "brew_speed_upgrade") {
+      received.add("Brewing Speed Level ${speedLevel} (${(brewSpeed * 100).toInt()}% speed)");
+    } else if (item.id == "seed_pack_basic") {
+      received.add("10x Wild Seed");
+    } else if (item.id == "random_seed_single") {
+      // Get the last added seed type (simplified)
+      received.add("1x Mystery Seed (check inventory)");
+    } else if (item.id == "plant_pack_small") {
+      received.add("5x Random Plants (Tiers 1-3)");
+    } else if (item.id == "plant_pack_large") {
+      received.add("3x Random Plants (Tiers 3-5)");
+    } else if (item.id == "rare_seed_pack") {
+      received.add("1x Arcane Seed");
+      received.add("1x Ancient Seed");
+      received.add("1x Celestial Seed");
+    } else if (item.id == "epic_seed_pack") {
+      received.add("2x Ancient Seed");
+      received.add("1x Celestial Seed");
+    } else if (item.id == "starter_bundle") {
+      received.add("5x Instant Brew Token");
+      received.add("3x Arcane Seed");
+    } else if (item.id == "mega_bundle") {
+      received.add("10x Instant Brew Token");
+      received.add("5x Instant Grow Token");
+      received.add("5x Double XP Charges");
+      received.add("5x Double Gold Charges");
+    } else {
+      received.add(item.name);
+    }
+
+    save();
+    notifyListeners();
+    return received;
+  }
+
+  void generateDailyQuestsIfNeeded() {
+    String today = DateTime.now().toIso8601String().substring(0, 10);
+    if (lastQuestDay == today && dailyQuests.isNotEmpty) return;
+    lastQuestDay = today;
+    dailyQuestsCompletedToday = false;
+    dailyQuests.clear();
+    List<Recipe> possibleQuests = List.from(allRecipes);
+    possibleQuests.shuffle();
+    int count = min(3, possibleQuests.length);
+    for (int i = 0; i < count; i++) {
+      // Reward is 2x the potion's gold value
+      int reward = calculatePotionReward(possibleQuests[i].ids) * 2;
+      dailyQuests.add(
+        DailyQuest(recipeKey: possibleQuests[i].key, reward: reward),
+      );
+    }
+    save();
+    notifyListeners();
+  }
+
+  int checkDailyQuests(String key) {
+    int reward = 0;
+    for (var q in dailyQuests) {
+      if (!q.done && q.recipeKey == key) {
+        q.done = true;
+        reward += q.reward;
+      }
+    }
+    if (dailyQuests.isNotEmpty && dailyQuests.every((q) => q.done) && !dailyQuestsCompletedToday) {
+      dailyQuestsCompletedToday = true;
+      giveDailyCompletionBonus();
+    }
+    return reward;
+  }
+
+  void giveDailyCompletionBonus() {
+    crystals += 20;
+    gold += 100000;
+    save();
+    notifyListeners();
+  }
+
+  bool gainXP(int amount) {
+    xp += amount;
+    bool leveled = checkLevelUp();
+    return leveled;
+  }
+
+  int speedUpgradeCost() {
+    // Exponential cost increase: 500, 1500, 4000, 10000, 25000
+    return (500 * pow(2.5, speedLevel)).round();
+  }
+
+  void upgradeSpeed() {
+    int cost = speedUpgradeCost();
+    if (gold < cost) return;
+    gold -= cost;
+    speedLevel++;
+    brewSpeed = 1.0 + speedLevel * 0.25;
+    save();
+    notifyListeners();
+  }
+
+  void useInstantBrew(int slot) {
+    final data = brewSlots[slot];
+    if (data == null) return;
+    if (instantBrewTokens <= 0) return;
+    data["done"] = true;
+    instantBrewTokens--;
+    lastGoldGain = 0;
+    save();
+    notifyListeners();
+  }
+
+  void useInstantGrow(int slot) {
+    final data = garden[slot];
+    if (data == null) return;
+    if (instantGrowTokens <= 0) return;
+    // Mark as ready by setting start time far in past
+    data["start"] = DateTime.now().millisecondsSinceEpoch - (100 * 24 * 60 * 60 * 1000);
+    instantGrowTokens--;
+    save();
+    notifyListeners();
+  }
+
+  void sellPotion(int slot) {
+    final data = brewSlots[slot];
+    if (data == null) return;
+    List<int> ids = List<int>.from(data["plants"]);
+    int baseReward = calculatePotionReward(ids);
+    if (doubleGoldCharges > 0) {
+      baseReward *= 2;
+      doubleGoldCharges--;
+    }
+    ids.sort();
+    String key = ids.join("_");
+    int questReward = checkDailyQuests(key);
+    gold += baseReward + questReward;
+
+    final rarity = getRarity(ids);
+    int xpGain = getPotionXp(rarity);
+    if (doubleXpCharges > 0) {
+      xpGain *= 2;
+      doubleXpCharges--;
+    }
+    bool leveled = gainXP(xpGain);
+
+    lastGoldGain = baseReward;
+    lastQuestGain = questReward;
+    showGoldAnimation = true;
+    brewSlots[slot] = null;
+    if (leveled) showGoldAnimation = false;
+    save();
+    notifyListeners();
+  }
+
+  // Garden slots now cost crystals
+  int nextGardenSlotCost() {
+    if (unlockedSlots >= maxGardenSlots) return -1;
+    // Crystal costs: 5, 15, 40, 100, 250, 600, 1500, 4000
+    const costs = [5, 15, 40, 100, 250, 600, 1500, 4000];
+    return costs[unlockedSlots - 3];
+  }
+
+  void unlockGardenSlot() {
+    int cost = nextGardenSlotCost();
+    if (cost < 0) return;
+    if (crystals < cost) return;
+    crystals -= cost;
+    unlockedSlots++;
+    save();
+    notifyListeners();
+  }
+
+  // Brew slot costs (crystals)
+  int nextBrewSlotCost() {
+    if (unlockedBrewSlots >= maxBrewSlots) return -1;
+    // Costs for slots 3, 4, 5: 10, 25, 60 crystals
+    const costs = [10, 25, 60];
+    return costs[unlockedBrewSlots - 2];
+  }
+
+  void unlockBrewSlot() {
+    int cost = nextBrewSlotCost();
+    if (cost < 0) return;
+    if (crystals < cost) return;
+    crystals -= cost;
+    unlockedBrewSlots++;
+    save();
+    notifyListeners();
+  }
+
+  Future<void> load() async {
+    prefs = await SharedPreferences.getInstance();
+    gold = prefs.getInt("gold") ?? 0;
+    crystals = prefs.getInt("crystals") ?? 0;
+    unlockedSlots = prefs.getInt("unlockedSlots") ?? 3;
+    unlockedBrewSlots = prefs.getInt("unlockedBrewSlots") ?? 2; // Start with 2
+    speedLevel = prefs.getInt("speedLevel") ?? 0;
+    level = prefs.getInt("level") ?? 1;
+    xp = prefs.getInt("xp") ?? 0;
+    instantGrowTokens = prefs.getInt("instantGrowTokens") ?? 0;
+    brewSpeed = 1.0 + speedLevel * 0.25;
+
+    storage = List.generate(plants.length, (i) => prefs.getInt("storage_$i") ?? 0);
+    seedStorage = List.generate(seeds.length, (i) => prefs.getInt("seeds_$i") ?? 0);
+
+    for (int i = 0; i < maxGardenSlots; i++) {
+      String? data = prefs.getString("garden_$i");
+      if (data != null) garden[i] = jsonDecode(data);
+    }
+
+    for (int i = 0; i < maxBrewSlots; i++) {
+      String? data = prefs.getString("brew_$i");
+      if (data != null) brewSlots[i] = jsonDecode(data);
+    }
+
+    discovered = prefs.getStringList("recipes")?.toSet() ?? {};
+    lastQuestDay = prefs.getString("lastQuestDay") ?? "";
+    dailyQuestsCompletedToday = prefs.getBool("dailyQuestsCompletedToday") ?? false;
+
+    List<String>? questJson = prefs.getStringList("dailyQuests");
+    if (questJson != null) {
+      dailyQuests = questJson.map((q) => DailyQuest.fromJson(jsonDecode(q))).toList();
+    }
+
+    generateDailyQuestsIfNeeded();
+    initShop();
+
+    notifyListeners();
+  }
+
+  Future<void> save() async {
+    await prefs.setInt("gold", gold);
+    await prefs.setInt("crystals", crystals);
+    await prefs.setInt("unlockedSlots", unlockedSlots);
+    await prefs.setInt("unlockedBrewSlots", unlockedBrewSlots);
+    await prefs.setInt("speedLevel", speedLevel);
+    await prefs.setInt("level", level);
+    await prefs.setInt("xp", xp);
+    await prefs.setInt("instantGrowTokens", instantGrowTokens);
+    await prefs.setBool("dailyQuestsCompletedToday", dailyQuestsCompletedToday);
+
+    for (int i = 0; i < plants.length; i++) {
+      await prefs.setInt("storage_$i", storage[i]);
+    }
+    for (int i = 0; i < seeds.length; i++) {
+      await prefs.setInt("seeds_$i", seedStorage[i]);
+    }
+    for (int i = 0; i < maxGardenSlots; i++) {
+      if (garden[i] != null) {
+        await prefs.setString("garden_$i", jsonEncode(garden[i]));
+      } else {
+        await prefs.remove("garden_$i");
+      }
+    }
+    for (int i = 0; i < maxBrewSlots; i++) {
+      if (brewSlots[i] != null) {
+        await prefs.setString("brew_$i", jsonEncode(brewSlots[i]));
+      } else {
+        await prefs.remove("brew_$i");
+      }
+    }
+    await prefs.setStringList("recipes", discovered.toList());
+    await prefs.setString("lastQuestDay", lastQuestDay);
+
+    List<String> questJson = dailyQuests.map((q) => jsonEncode(q.toJson())).toList();
+    await prefs.setStringList("dailyQuests", questJson);
+  }
+
+  void plant(int slot, int seedId) {
+    if (seedId != 0 && seedStorage[seedId] <= 0) return;
+    if (seedId != 0) seedStorage[seedId]--;
+    garden[slot] = {
+      "seedId": seedId,
+      "start": DateTime.now().millisecondsSinceEpoch,
+    };
+    save();
+    notifyListeners();
+  }
+
+  void cancelPlant(int slot) {
+    final data = garden[slot];
+    if (data == null) return;
+    // Return the seed if it wasn't a wild seed (id 0)
+    int seedId = data["seedId"];
+    if (seedId != 0) {
+      seedStorage[seedId]++;
+    }
+    garden[slot] = null;
+    save();
+    notifyListeners();
+  }
+
+  int? harvest(int slot) {
+    final data = garden[slot];
+    if (data == null) return null;
+    int seedId = data["seedId"];
+    int start = data["start"];
+    final seed = seeds[seedId];
+    final elapsed = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(start));
+    int growTime = seed.growTime.inSeconds;
+    if (elapsed.inSeconds < growTime) return null;
+
+    double roll = Random().nextDouble();
+    double sum = 0;
+    int resultPlant = seed.results.first.plantId;
+    for (var r in seed.results) {
+      sum += r.chance;
+      if (roll <= sum) {
+        resultPlant = r.plantId;
+        break;
+      }
+    }
+
+    storage[resultPlant]++;
+    garden[slot] = null;
+    gainXP(getPlantXp(resultPlant));
+    save();
+    notifyListeners();
+    return resultPlant;
+  }
+
+  Rarity getRarity(List<int> ids) {
+    final sorted = List<int>.from(ids)..sort();
+    final key = sorted.join("_");
+    for (final recipe in allRecipes) {
+      if (recipe.key == key) return recipe.rarity;
+    }
+    return Rarity.common;
+  }
+
+  Color rarityColor(Rarity r) {
+    switch (r) {
+      case Rarity.common: return MagicColors.common;
+      case Rarity.rare: return MagicColors.rare;
+      case Rarity.epic: return MagicColors.epic;
+    }
+  }
+
+  Duration brewTime(List<int> ids) {
+    int totalGrowSeconds = 0;
+    for (var id in ids) totalGrowSeconds += plants[id].growTime.inSeconds;
+    double baseSeconds = totalGrowSeconds * 0.6; // Increased from 0.5
+    if (baseSeconds < 45) baseSeconds = 45; // Minimum 45s
+    int adjustedSeconds = (baseSeconds / brewSpeed).round();
+    return Duration(seconds: adjustedSeconds);
+  }
+
+  void startBrew(int slot, List<int> ids) {
+    for (var id in ids) if (storage[id] <= 0) return;
+    for (var id in ids) storage[id]--;
+    final time = brewTime(ids);
+    brewSlots[slot] = {
+      "plants": ids,
+      "start": DateTime.now().millisecondsSinceEpoch,
+      "time": time.inSeconds,
+      "done": false,
+    };
+    save();
+    notifyListeners();
+  }
+
+  int calculatePotionReward(List<int> ids) {
+    int totalCost = 0;
+    for (var id in ids) totalCost += plants[id].cost;
+    final rarity = getRarity(ids);
+    double multiplier = 1.3; // Reduced from 1.5
+    if (rarity == Rarity.rare) multiplier = 2.0; // Reduced from 2.5
+    if (rarity == Rarity.epic) multiplier = 3.5; // Reduced from 5.0
+    double reward = totalCost * multiplier;
+    ids.sort();
+    String key = ids.join("_");
+    if (!discovered.contains(key)) reward *= 1.5; // Reduced from 2x
+    return reward.round();
+  }
+
+  void giveDailyChest() {
+    // Legacy method - replaced by giveDailyCompletionBonus
+    final r = Random().nextDouble();
+    if (r < 0.5) {
+      storage[3] += 2;
+    } else if (r < 0.8) {
+      instantBrewTokens++;
+    } else if (r < 0.95) {
+      storage[6] += 1;
+    } else {
+      doubleGoldCharges += 3;
+    }
+    save();
+    notifyListeners();
+  }
+
+  void checkBrew() {
+    bool changed = false;
+    for (int i = 0; i < maxBrewSlots; i++) {
+      final slot = brewSlots[i];
+      if (slot == null) continue;
+      if (slot["done"] == true) continue;
+      int start = slot["start"];
+      int total = slot["time"];
+      int elapsed = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(start)).inSeconds;
+      if (elapsed >= total) {
+        List<int> ids = List<int>.from(slot["plants"]);
+        ids.sort();
+        discovered.add(ids.join("_"));
+        slot["done"] = true;
+        changed = true;
+      }
+    }
+    if (changed) {
+      save();
+      notifyListeners();
+    }
+  }
+}
+
+// ==========================================
+// MAIN APP
+// ==========================================
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final game = GameState();
+  bool loaded = false;
+  int screen = 0;
+  Timer? timer;
+
+  @override
+  void initState() {
+    super.initState();
+    game.startTicker();
+    game.load().then((_) {
+      setState(() => loaded = true);
+      timer = Timer.periodic(const Duration(seconds: 1), (_) => game.checkBrew());
+    });
+  }
+
+  @override
+  void dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!loaded) {
+      return MaterialApp(
+        home: Scaffold(
+          body: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [MagicColors.background, MagicColors.surface],
+              ),
+            ),
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: MagicColors.gold),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading Alchemical World...',
+                    style: TextStyle(color: MagicColors.textLight),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: MagicColors.background,
+        cardTheme: CardThemeData(
+          color: MagicColors.surface.withOpacity(0.8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 8,
+        ),
+      ),
+      home: AnimatedBuilder(
+        animation: game,
+        builder: (_, __) => Stack(
+          children: [
+            Scaffold(
+              body: Column(
+                children: [
+                  // Fixed Resource Bar at top
+                  ResourceBar(game: game),
+
+                  // Navigation Tabs
+                  Container(
+                    decoration: BoxDecoration(
+                      color: MagicColors.surface.withOpacity(0.5),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: MagicColors.crystal.withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    child: SafeArea(
+                      top: false,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _navButton(0, 'Brew', Icons.local_fire_department, 'Alchemy Lab'),
+                          _navButton(1, 'Garden', Icons.eco, 'Magic Garden'),
+                          _navButton(2, 'Shop', Icons.store, 'Merchant'),
+                          _navButton(3, 'Book', Icons.menu_book, 'Recipes'),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Main Content
+                  Expanded(
+                    child: _getScreen(),
+                  ),
+                ],
+              ),
+            ),
+
+            // Gold Animation Overlay
+            if (game.showGoldAnimation)
+              Positioned(
+                top: 100,
+                left: MediaQuery.of(context).size.width / 2 - 50,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: -60),
+                  duration: const Duration(milliseconds: 1000),
+                  onEnd: () => game.showGoldAnimation = false,
+                  builder: (_, value, child) {
+                    return Transform.translate(
+                      offset: Offset(0, value),
+                      child: Opacity(
+                        opacity: (1 - (value.abs() / 60)).clamp(0.0, 1.0),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.amber.withOpacity(0.3),
+                          Colors.orange.withOpacity(0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.amber),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.amber.withOpacity(0.5),
+                          blurRadius: 20,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.monetization_on, color: Colors.amber),
+                            const SizedBox(width: 4),
+                            Text(
+                              '+${game.lastGoldGain}',
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (game.lastQuestGain > 0)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star, color: Colors.lightBlue, size: 16),
+                              Text(
+                                ' +${game.lastQuestGain} quest',
+                                style: const TextStyle(
+                                  color: Colors.lightBlue,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navButton(int index, String label, IconData icon, String tooltip) {
+    final isSelected = screen == index;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () => setState(() => screen = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            border: isSelected
+                ? Border(
+              bottom: BorderSide(
+                color: index == 0 ? MagicColors.fire :
+                index == 1 ? MagicColors.leaf :
+                index == 2 ? MagicColors.gold : MagicColors.crystal,
+                width: 3,
+              ),
+            )
+                : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isSelected
+                    ? (index == 0 ? MagicColors.fire :
+                index == 1 ? MagicColors.leaf :
+                index == 2 ? MagicColors.gold : MagicColors.crystal)
+                    : MagicColors.textMuted,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? MagicColors.textLight : MagicColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _getScreen() {
+    switch (screen) {
+      case 0: return PotionScreen(game);
+      case 1: return GardenScreen(game);
+      case 2: return ShopScreen(game);
+      case 3: return RecipeBookScreen(game);
+      default: return PotionScreen(game);
+    }
+  }
+}
+
+// ==========================================
+// BREWING SCREEN - Medieval Alchemy Lab
+// ==========================================
+class PotionScreen extends StatelessWidget {
+  final GameState game;
+  const PotionScreen(this.game, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF2C1810), // Wood/dark brown
+            Color(0xFF1A0F0A),
+            MagicColors.background,
+          ],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Brew Slot Unlock Info
+            if (game.unlockedBrewSlots < GameState.maxBrewSlots)
+              _buildUnlockCard(context),
+
+            const SizedBox(height: 20),
+
+            // Cauldrons - dynamic based on unlocked slots
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              alignment: WrapAlignment.center,
+              children: List.generate(GameState.maxBrewSlots, (i) => _buildCauldron(context, i)),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Daily Quests Scroll
+            _buildQuestsSection(context),
+
+            const SizedBox(height: 20),
+
+            // Inventory
+            _buildInventorySection(context),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnlockCard(BuildContext context) {
+    final cost = game.nextBrewSlotCost();
+    final canAfford = game.crystals >= cost;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            MagicColors.crystal.withOpacity(0.2),
+            MagicColors.surfaceLight.withOpacity(0.4),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: MagicColors.crystal.withOpacity(canAfford ? 0.6 : 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: MagicColors.crystal.withOpacity(canAfford ? 0.3 : 0),
+            blurRadius: 15,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: MagicColors.crystal.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.local_fire_department, color: MagicColors.crystal),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Unlock Cauldron ${game.unlockedBrewSlots + 1}/${GameState.maxBrewSlots}',
+                  style: const TextStyle(
+                    color: MagicColors.textLight,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Brew more potions simultaneously',
+                  style: const TextStyle(color: MagicColors.textMuted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: canAfford ? () {
+              game.unlockBrewSlot();
+              _showUnlockDialog(context, game.unlockedBrewSlots);
+            } : null,
+            icon: const Icon(Icons.diamond, size: 16),
+            label: Text('$cost'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: MagicColors.crystal.withOpacity(canAfford ? 0.3 : 0.1),
+              foregroundColor: canAfford ? MagicColors.crystal : Colors.grey,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUnlockDialog(BuildContext context, int slotNumber) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent freezing by requiring button press
+      builder: (_) => AlertDialog(
+        backgroundColor: MagicColors.surface,
+        title: const Text('🔥 Cauldron Unlocked!', style: TextStyle(color: MagicColors.crystal)),
+        content: Text(
+          'Cauldron $slotNumber is now ready for brewing!',
+          style: const TextStyle(color: MagicColors.textLight),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Excellent!'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCauldron(BuildContext context, int index) {
+    final slot = game.brewSlots[index];
+    final isUnlocked = index < game.unlockedBrewSlots;
+
+    if (!isUnlocked) {
+      return Container(
+        width: 100,
+        height: 140,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade900,
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(50),
+            bottomRight: Radius.circular(50),
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          border: Border.all(color: Colors.grey.shade800, width: 3),
+        ),
+        child: const Center(
+          child: Icon(Icons.lock, color: Colors.grey),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: slot == null
+          ? () => _showBrewDialog(context, index)
+          : null,
+      child: Container(
+        width: 100,
+        height: 140,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [const Color(0xFF4A3728), const Color(0xFF2C1810)],
+          ),
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(50),
+            bottomRight: Radius.circular(50),
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+          border: Border.all(
+            color: slot != null && slot["done"] == true
+                ? MagicColors.gold
+                : const Color(0xFF6B4423),
+            width: 3,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: slot != null && slot["done"] == true
+                  ? MagicColors.gold.withOpacity(0.5)
+                  : Colors.black.withOpacity(0.5),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: slot == null
+            ? Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_circle_outline,
+              color: MagicColors.crystal.withOpacity(0.7),
+              size: 32,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Add\nPlants',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: MagicColors.textMuted,
+                fontSize: 10,
+              ),
+            ),
+          ],
+        )
+            : _buildActiveCauldron(context, index, slot),
+      ),
+    );
+  }
+
+  Widget _buildActiveCauldron(BuildContext context, int index, dynamic slot) {
+    final done = slot["done"] == true;
+    final progress = _calculateProgress(slot);
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Bubbling effect background
+        if (!done)
+          Positioned.fill(
+            child: CustomPaint(
+              painter: BubblePainter(progress: progress),
+            ),
+          ),
+
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Potion icon
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: done
+                    ? MagicColors.gold.withOpacity(0.3)
+                    : MagicColors.potionPurple.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                done ? Icons.local_drink : Icons.hourglass_bottom,
+                color: done ? MagicColors.gold : MagicColors.potionPurple,
+                size: 32,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            if (!done) ...[
+              // Progress bar
+              Container(
+                width: 70,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.black26,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: progress,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [MagicColors.crystal, MagicColors.potionBlue],
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                _brewRemainingTime(slot),
+                style: const TextStyle(
+                  color: MagicColors.textLight,
+                  fontSize: 10,
+                ),
+              ),
+
+              // Instant brew button
+              if (game.instantBrewTokens > 0)
+                GestureDetector(
+                  onTap: () => game.useInstantBrew(index),
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.yellow),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt, color: Colors.yellow, size: 12),
+                        Text(
+                          '${game.instantBrewTokens}',
+                          style: const TextStyle(
+                            color: Colors.yellow,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ] else ...[
+              // Sell button
+              GestureDetector(
+                onTap: () => _sellPotion(context, index),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        MagicColors.gold.withOpacity(0.3),
+                        MagicColors.goldDark.withOpacity(0.3),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: MagicColors.gold),
+                  ),
+                  child: const Text(
+                    'SELL',
+                    style: TextStyle(
+                      color: MagicColors.gold,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+
+        // Cancel button
+        if (!done)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: () => _confirmCancel(context, index),
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.red, size: 14),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _sellPotion(BuildContext context, int index) {
+    final beforeLevel = game.level;
+    final beforeCrystals = game.crystals;
+    game.sellPotion(index);
+
+    if (game.level > beforeLevel) {
+      int crystalsGained = game.crystals - beforeCrystals;
+      showDialog(
+        context: context,
+        barrierDismissible: false, // Prevent freeze
+        builder: (_) => AlertDialog(
+          backgroundColor: MagicColors.surface,
+          title: const Text('🎉 Level Up!', style: TextStyle(color: MagicColors.gold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'You reached level ${game.level}!',
+                style: const TextStyle(color: MagicColors.textLight),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.diamond, color: MagicColors.crystal, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    'You received +$crystalsGained Crystal!',
+                    style: const TextStyle(color: MagicColors.crystal, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Awesome!'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _confirmCancel(BuildContext context, int index) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: MagicColors.surface,
+        title: const Text('Cancel Brewing?', style: TextStyle(color: MagicColors.textLight)),
+        content: const Text(
+          'You will lose the ingredients!',
+          style: TextStyle(color: MagicColors.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep Brewing'),
+          ),
+          TextButton(
+            onPressed: () {
+              game.brewSlots[index] = null;
+              game.save();
+              game.notifyListeners();
+              Navigator.pop(context);
+            },
+            child: const Text('Cancel', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestsSection(BuildContext context) {
+    final allDone = game.dailyQuests.isNotEmpty && game.dailyQuests.every((q) => q.done);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2C1810).withOpacity(0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: MagicColors.gold.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.history_edu, color: MagicColors.gold, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'Daily Scrolls',
+                style: TextStyle(
+                  color: MagicColors.gold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const Spacer(),
+              if (allDone)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: game.dailyQuestsCompletedToday
+                        ? Colors.purple.withOpacity(0.3)
+                        : Colors.green.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    game.dailyQuestsCompletedToday ? 'Bonus Claimed!' : 'All Complete!',
+                    style: TextStyle(
+                        color: game.dailyQuestsCompletedToday ? Colors.purple : Colors.green,
+                        fontSize: 12
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...game.dailyQuests.map((q) {
+            final recipe = allRecipes.firstWhere(
+                  (r) => r.key == q.recipeKey,
+              orElse: () => allRecipes.first,
+            );
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: q.done
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: q.done ? Colors.green : Colors.transparent,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text(recipe.icon, style: const TextStyle(fontSize: 24)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          recipe.name,
+                          style: TextStyle(
+                            color: q.done ? Colors.green : MagicColors.textLight,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (!q.done)
+                          Text(
+                            'Brew this potion',
+                            style: TextStyle(
+                              color: MagicColors.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: MagicColors.gold.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '+${q.reward}g',
+                      style: const TextStyle(
+                        color: MagicColors.gold,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  if (q.done)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.check_circle, color: Colors.green),
+                    ),
+                ],
+              ),
+            );
+          }),
+
+          // Daily completion bonus notification
+          if (allDone && !game.dailyQuestsCompletedToday)
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.purple.withOpacity(0.3),
+                    MagicColors.crystal.withOpacity(0.2),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: MagicColors.crystal),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.workspace_premium, color: MagicColors.crystal),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Daily Bonus Available!',
+                          style: TextStyle(
+                            color: MagicColors.crystal,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Complete all quests to claim 20 crystals + 100k gold',
+                          style: TextStyle(
+                            color: MagicColors.textMuted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      game.giveDailyCompletionBonus();
+                      _showDailyBonusDialog(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: MagicColors.crystal.withOpacity(0.3),
+                      foregroundColor: MagicColors.crystal,
+                    ),
+                    child: const Text('Claim!'),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showDailyBonusDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: MagicColors.surface,
+        title: const Text('🎁 Daily Bonus Claimed!', style: TextStyle(color: MagicColors.gold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.diamond, color: MagicColors.crystal, size: 32),
+                const SizedBox(width: 8),
+                const Text(
+                  '+20',
+                  style: TextStyle(
+                    color: MagicColors.crystal,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.monetization_on, color: MagicColors.gold, size: 32),
+                const SizedBox(width: 8),
+                const Text(
+                  '+100,000',
+                  style: TextStyle(
+                    color: MagicColors.gold,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Amazing!'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInventorySection(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: MagicColors.surface.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your Ingredients',
+            style: TextStyle(
+              color: MagicColors.textLight,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: plants.map((plant) {
+              final count = game.storage[plant.id];
+              if (count == 0) return const SizedBox.shrink();
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: plant.color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: plant.color.withOpacity(0.5)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(plant.icon),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${plant.name}: $count',
+                      style: TextStyle(
+                        color: plant.color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBrewDialog(BuildContext context, int slot) {
+    List<int> selected = [];
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          backgroundColor: MagicColors.surface,
+          title: const Text('Select 3 Plants', style: TextStyle(color: MagicColors.textLight)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: plants.map((p) {
+                final selectedCount = selected.where((id) => id == p.id).length;
+                final canSelect = game.storage[p.id] > selectedCount;
+                final isSelected = selected.contains(p.id);
+
+                return ListTile(
+                  enabled: canSelect || isSelected,
+                  leading: Text(p.icon, style: const TextStyle(fontSize: 24)),
+                  title: Text(p.name, style: const TextStyle(color: MagicColors.textLight)),
+                  subtitle: Text(
+                    'Owned: ${game.storage[p.id]}',
+                    style: TextStyle(color: MagicColors.textMuted.withOpacity(canSelect ? 1 : 0.5)),
+                  ),
+                  trailing: selectedCount > 0
+                      ? Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: MagicColors.crystal,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '$selectedCount',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  )
+                      : null,
+                  onTap: () {
+                    if (selected.length < 3 && canSelect) {
+                      setState(() => selected.add(p.id));
+                    } else if (isSelected) {
+                      setState(() => selected.removeLast());
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            Text(
+              '${selected.length}/3 selected',
+              style: const TextStyle(color: MagicColors.textMuted),
+            ),
+            TextButton(
+              onPressed: selected.length == 3
+                  ? () {
+                game.startBrew(slot, selected);
+                Navigator.pop(ctx);
+              }
+                  : null,
+              child: const Text('BREW'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _calculateProgress(dynamic slot) {
+    int start = slot["start"];
+    int total = slot["time"];
+    int elapsed = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(start)).inSeconds;
+    return (elapsed / total).clamp(0.0, 1.0);
+  }
+
+  String _brewRemainingTime(dynamic slot) {
+    int start = slot["start"];
+    int total = slot["time"];
+    int elapsed = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(start)).inSeconds;
+    int remaining = (total - elapsed).clamp(0, total);
+    return formatTime(remaining);
+  }
+}
+
+// ==========================================
+// GARDEN SCREEN - Magical Garden
+// ==========================================
+class GardenScreen extends StatelessWidget {
+  final GameState game;
+  const GardenScreen(this.game, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF0D3328), // Deep forest green
+            const Color(0xFF1A0F2E),
+          ],
+        ),
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Garden Title
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    MagicColors.leaf.withOpacity(0.3),
+                    Colors.transparent,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: MagicColors.leaf.withOpacity(0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🌿', style: TextStyle(fontSize: 24)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Mystic Garden',
+                    style: TextStyle(
+                      color: MagicColors.leafLight,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          color: MagicColors.leaf.withOpacity(0.8),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Garden Grid
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: List.generate(game.garden.length, (i) => _buildGardenPlot(context, i)),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Seed Inventory
+            _buildSeedInventory(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGardenPlot(BuildContext context, int index) {
+    if (index >= game.unlockedSlots) {
+      final cost = game.nextGardenSlotCost();
+      final canAfford = game.crystals >= cost;
+
+      return GestureDetector(
+        onTap: cost > 0 && canAfford ? () {
+          game.unlockGardenSlot();
+          _showGardenUnlockDialog(context, index + 1);
+        } : null,
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: Colors.black26,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: cost > 0 && canAfford
+                  ? MagicColors.crystal.withOpacity(0.6)
+                  : Colors.grey.withOpacity(0.3),
+              width: 2,
+              style: BorderStyle.solid,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.lock_open,
+                color: cost > 0 && canAfford ? MagicColors.crystal : Colors.grey,
+              ),
+              if (cost > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$cost',
+                      style: TextStyle(
+                        color: canAfford ? MagicColors.crystal : Colors.grey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.diamond, color: MagicColors.crystal, size: 12),
+                  ],
+                ),
+              ] else
+                const Text('MAX', style: TextStyle(color: Colors.grey, fontSize: 10)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final slot = game.garden[index];
+    if (slot == null) {
+      return GestureDetector(
+        onTap: () => _showPlantDialog(context, index),
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                MagicColors.earth.withOpacity(0.6),
+                MagicColors.earthLight.withOpacity(0.4),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: MagicColors.leaf.withOpacity(0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: MagicColors.leaf.withOpacity(0.2),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, color: MagicColors.leafLight.withOpacity(0.8)),
+              const SizedBox(height: 4),
+              const Text(
+                'Plant',
+                style: TextStyle(
+                  color: MagicColors.textMuted,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Extract data from slot
+    final seedId = slot["seedId"];
+    final start = slot["start"];
+
+    // Validate data
+    if (seedId == null || start == null || seedId < 0 || seedId >= seeds.length) {
+      return const SizedBox.shrink();
+    }
+
+    final seed = seeds[seedId];
+    final elapsed = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(start));
+    final progress = elapsed.inMilliseconds / seed.growTime.inMilliseconds;
+    final isReady = progress >= 1;
+
+    return GestureDetector(
+      onTap: isReady ? () => _harvest(context, index) : null,
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isReady
+                ? [seed.color.withOpacity(0.6), seed.color.withOpacity(0.3)]
+                : [MagicColors.earth.withOpacity(0.4), MagicColors.earthLight.withOpacity(0.2)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isReady ? seed.color : MagicColors.leaf.withOpacity(0.3),
+            width: isReady ? 3 : 1,
+          ),
+          boxShadow: isReady
+              ? [
+            BoxShadow(
+              color: seed.color.withOpacity(0.5),
+              blurRadius: 15,
+            ),
+          ]
+              : null,
+        ),
+        child: Stack(
+          children: [
+            if (!isReady)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: LinearProgressIndicator(
+                    value: progress.clamp(0.0, 1.0),
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(seed.color.withOpacity(0.3)),
+                  ),
+                ),
+              ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    seed.icon,
+                    style: TextStyle(
+                      fontSize: isReady ? 32 : 24,
+                      shadows: isReady
+                          ? [
+                        Shadow(
+                          color: seed.color,
+                          blurRadius: 10,
+                        ),
+                      ]
+                          : null,
+                    ),
+                  ),
+                  if (!isReady) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      formatTime((seed.growTime.inSeconds - elapsed.inSeconds).clamp(0, seed.growTime.inSeconds)),
+                      style: const TextStyle(
+                        color: MagicColors.textLight,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: seed.color,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'HARVEST',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Cancel button for growing plants
+            if (!isReady)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: GestureDetector(
+                  onTap: () => _confirmCancelPlant(context, index),
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close, color: Colors.red, size: 14),
+                  ),
+                ),
+              ),
+
+            // Instant grow button
+            if (!isReady && game.instantGrowTokens > 0)
+              Positioned(
+                top: 4,
+                left: 4,
+                child: GestureDetector(
+                  onTap: () => game.useInstantGrow(index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: MagicColors.leaf.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: MagicColors.leaf),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.eco, color: MagicColors.leaf, size: 10),
+                        Text(
+                          '${game.instantGrowTokens}',
+                          style: const TextStyle(
+                            color: MagicColors.leaf,
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGardenUnlockDialog(BuildContext context, int slotNumber) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: MagicColors.surface,
+        title: const Text('🌱 Garden Expanded!', style: TextStyle(color: MagicColors.leaf)),
+        content: Text(
+          'Garden slot $slotNumber is now available for planting!',
+          style: const TextStyle(color: MagicColors.textLight),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Great!'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmCancelPlant(BuildContext context, int index) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: MagicColors.surface,
+        title: const Text('Uproot Plant?', style: TextStyle(color: MagicColors.textLight)),
+        content: const Text(
+          'You will get the seed back (except for Wild Seeds)!',
+          style: TextStyle(color: MagicColors.textMuted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Keep Growing'),
+          ),
+          TextButton(
+            onPressed: () {
+              game.cancelPlant(index);
+              Navigator.pop(context);
+            },
+            child: const Text('Uproot', style: TextStyle(color: Colors.orange)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _harvest(BuildContext context, int index) {
+    final beforeLevel = game.level;
+    final beforeCrystals = game.crystals;
+    final plantId = game.harvest(index);
+
+    if (plantId != null) {
+      final plant = plants[plantId];
+
+      // Show harvest animation/snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: MagicColors.surface,
+          content: Row(
+            children: [
+              Text(plant.icon, style: const TextStyle(fontSize: 24)),
+              const SizedBox(width: 12),
+              Text(
+                'Harvested: ${plant.name}!',
+                style: const TextStyle(color: MagicColors.textLight),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      if (game.level > beforeLevel) {
+        int crystalsGained = game.crystals - beforeCrystals;
+        showDialog(
+          context: context,
+          barrierDismissible: false, // Prevent freeze
+          builder: (_) => AlertDialog(
+            backgroundColor: MagicColors.surface,
+            title: const Text('🎉 Level Up!', style: TextStyle(color: MagicColors.gold)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'You reached level ${game.level}!',
+                  style: const TextStyle(color: MagicColors.textLight),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.diamond, color: MagicColors.crystal, size: 20),
+                    const SizedBox(width: 4),
+                    Text(
+                      'You received +$crystalsGained Crystal!',
+                      style: const TextStyle(color: MagicColors.crystal, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Awesome!'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildSeedInventory() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: MagicColors.surface.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: MagicColors.leaf.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.grass, color: MagicColors.leaf),
+              const SizedBox(width: 8),
+              const Text(
+                'Seed Pouch',
+                style: TextStyle(
+                  color: MagicColors.textLight,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: seeds.map((seed) {
+              final count = game.seedStorage[seed.id];
+              if (seed.id != 0 && count == 0) return const SizedBox.shrink();
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      seed.color.withOpacity(0.3),
+                      seed.color.withOpacity(0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: seed.color.withOpacity(0.5)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(seed.icon),
+                    const SizedBox(width: 6),
+                    Text(
+                      seed.name,
+                      style: TextStyle(
+                        color: seed.color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (count > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black26,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'x$count',
+                          style: const TextStyle(
+                            color: MagicColors.textLight,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPlantDialog(BuildContext context, int slot) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: MagicColors.surface,
+        title: const Text('Choose Seed', style: TextStyle(color: MagicColors.textLight)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView(
+            shrinkWrap: true,
+            children: seeds.map((s) {
+              final amount = game.seedStorage[s.id];
+              final canPlant = s.id == 0 || amount > 0;
+
+              return ListTile(
+                enabled: canPlant,
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: s.color.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(s.icon),
+                ),
+                title: Text(
+                  s.name,
+                  style: TextStyle(
+                    color: canPlant ? MagicColors.textLight : Colors.grey,
+                  ),
+                ),
+                subtitle: Text(
+                  s.description,
+                  style: TextStyle(
+                    color: canPlant ? MagicColors.textMuted : Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+                trailing: s.id == 0
+                    ? const Text('Free', style: TextStyle(color: MagicColors.leaf))
+                    : amount > 0
+                    ? Text('x$amount', style: const TextStyle(color: MagicColors.textLight))
+                    : ElevatedButton(
+                  onPressed: game.gold >= s.cost
+                      ? () {
+                    game.buySeed(s.id);
+                    Navigator.pop(ctx);
+                    _showPlantDialog(context, slot);
+                  }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MagicColors.gold.withOpacity(0.3),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  child: Text('${s.cost}g'),
+                ),
+                onTap: canPlant
+                    ? () {
+                  game.plant(slot, s.id);
+                  Navigator.pop(ctx);
+                }
+                    : null,
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// SHOP SCREEN
+// ==========================================
+class ShopScreen extends StatelessWidget {
+  final GameState game;
+  const ShopScreen(this.game, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Filter out speed upgrade if maxed (optional, or just show maxed)
+    final goldItems = game.shopItems
+        .where((i) => i.currency == ShopCurrency.gold)
+        .where((i) => i.id != "brew_speed_upgrade" || game.speedLevel < 10) // Max 10 upgrades
+        .toList();
+    final crystalItems = game.shopItems.where((i) => i.currency == ShopCurrency.crystal).toList();
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF2C1810),
+            MagicColors.background,
+          ],
+        ),
+      ),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Gold Shop
+          _buildShopSection('Gold Emporium', Icons.monetization_on, MagicColors.gold, goldItems, context),
+
+          const SizedBox(height: 24),
+
+          // Crystal Shop
+          _buildShopSection('Crystal Bazaar', Icons.diamond, MagicColors.crystal, crystalItems, context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShopSection(String title, IconData icon, Color color, List<ShopItem> items, BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                color: color,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...items.map((item) => _buildShopCard(item, context)),
+      ],
+    );
+  }
+
+  Widget _buildShopCard(ShopItem item, BuildContext context) {
+    final canAfford = item.currency == ShopCurrency.gold
+        ? game.gold >= item.price
+        : game.crystals >= item.price;
+
+    // Update price display for speed upgrade
+    String priceDisplay = '${item.price}';
+    if (item.id == "brew_speed_upgrade") {
+      priceDisplay = '${game.speedUpgradeCost()}';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            MagicColors.surface.withOpacity(0.8),
+            MagicColors.surface.withOpacity(0.4),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: canAfford ? item.color.withOpacity(0.5) : Colors.grey.withOpacity(0.3),
+        ),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: item.color.withOpacity(0.2),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(item.icon, color: item.color),
+        ),
+        title: Text(
+          item.name,
+          style: const TextStyle(
+            color: MagicColors.textLight,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.description,
+              style: const TextStyle(color: MagicColors.textMuted),
+            ),
+            if (item.id == "brew_speed_upgrade")
+              Text(
+                'Current: ${(game.brewSpeed * 100).toInt()}% (Lvl ${game.speedLevel})',
+                style: TextStyle(color: item.color, fontSize: 11),
+              ),
+          ],
+        ),
+        trailing: ElevatedButton(
+          onPressed: canAfford
+              ? () {
+            final rewards = game.buyShopItemWithPopup(item);
+            if (rewards.isNotEmpty) {
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => AlertDialog(
+                  backgroundColor: MagicColors.surface,
+                  title: const Text('Acquired!', style: TextStyle(color: MagicColors.gold)),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: rewards.map((r) => Text(
+                      r,
+                      style: const TextStyle(color: MagicColors.textLight),
+                    )).toList(),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Great!'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: item.currency == ShopCurrency.gold
+                ? MagicColors.gold.withOpacity(0.3)
+                : MagicColors.crystal.withOpacity(0.3),
+            foregroundColor: item.currency == ShopCurrency.gold
+                ? MagicColors.gold
+                : MagicColors.crystal,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (item.currency == ShopCurrency.crystal)
+                const Icon(Icons.diamond, size: 14),
+              Text(priceDisplay),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// RECIPE BOOK SCREEN
+// ==========================================
+class RecipeBookScreen extends StatelessWidget {
+  final GameState game;
+  const RecipeBookScreen(this.game, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF1A1A2E),
+            MagicColors.background,
+          ],
+        ),
+      ),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Center(
+            child: Text(
+              '📜 Ancient Recipe Book',
+              style: TextStyle(
+                color: MagicColors.gold,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Center(
+            child: Text(
+              'Discover potions by brewing ingredients',
+              style: TextStyle(color: MagicColors.textMuted),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          ...allRecipes.map((recipe) {
+            final isDiscovered = game.discovered.contains(recipe.key);
+            final color = isDiscovered ? game.rarityColor(recipe.rarity) : Colors.grey;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isDiscovered
+                      ? [color.withOpacity(0.2), Colors.transparent]
+                      : [Colors.grey.withOpacity(0.1), Colors.transparent],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDiscovered ? color : Colors.grey.withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    isDiscovered ? recipe.icon : '❓',
+                    style: const TextStyle(fontSize: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isDiscovered ? recipe.name : 'Unknown Recipe',
+                          style: TextStyle(
+                            color: isDiscovered ? MagicColors.textLight : Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (isDiscovered) ...[
+                          Row(
+                            children: recipe.ids.map((id) => Container(
+                              margin: const EdgeInsets.only(right: 4),
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: plants[id].color.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(plants[id].icon),
+                            )).toList(),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              recipe.rarity.name.toUpperCase(),
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ] else
+                          const Text(
+                            '??? + ??? + ???',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (isDiscovered)
+                    const Icon(Icons.check_circle, color: Colors.green)
+                  else
+                    const Icon(Icons.lock, color: Colors.grey),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// BUBBLE PAINTER for cauldron effect
+// ==========================================
+class BubblePainter extends CustomPainter {
+  final double progress;
+
+  BubblePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = MagicColors.crystal.withOpacity(0.3)
+      ..style = PaintingStyle.fill;
+
+    final random = Random(42); // Fixed seed for consistency
+
+    for (int i = 0; i < 5; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = size.height - (random.nextDouble() * size.height * progress);
+      final radius = random.nextDouble() * 4 + 2;
+
+      canvas.drawCircle(Offset(x, y), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
