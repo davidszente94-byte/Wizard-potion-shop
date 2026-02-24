@@ -870,7 +870,7 @@ class GameState extends ChangeNotifier {
 
     // Exponential curve between 5 and 10000
     double progress = sum / 18.0;
-    double price = 5 * pow(10000 / 5, progress);
+    double price = 5 * pow(10000 / 5, progress).toDouble();
     return price.round();
   }
 
@@ -910,8 +910,6 @@ class GameState extends ChangeNotifier {
 
   void startIdleBrew(int slotIndex, String recipeKey) {
     if (slotIndex >= unlockedBrewSlots) return;
-    if (!isRecipeUnlocked(recipeKey)) return;
-
     brewSlots[slotIndex] = IdleBrewSlot(
       recipeKey: recipeKey,
       startTime: DateTime.now().millisecondsSinceEpoch,
@@ -1200,11 +1198,9 @@ class GameState extends ChangeNotifier {
   int speedUpgradeCost() => (500 * pow(2.5, speedLevel)).round();
 
   void upgradeSpeed() {
-    int cost = speedUpgradeCost();
-    if (gold < cost) return;
-    gold -= cost;
     speedLevel++;
     brewSpeed = 1.0 + speedLevel * 0.25;
+    initShop();
     save();
     notifyListeners();
   }
@@ -1239,6 +1235,8 @@ class GameState extends ChangeNotifier {
     instantBrewTokens = prefs.getInt("instantBrewTokens") ?? 0;
     brewSpeed = 1.0 + speedLevel * 0.25;
     lastSaveTime = prefs.getInt("lastSaveTime") ?? DateTime.now().millisecondsSinceEpoch;
+    doubleXpCharges = prefs.getInt("doubleXpCharges") ?? 0;
+    doubleGoldCharges = prefs.getInt("doubleGoldCharges") ?? 0;
 
     for (int i = 0; i < plants.length; i++) {
       storage[i] = prefs.getInt("storage_$i") ?? 0;
@@ -1253,6 +1251,9 @@ class GameState extends ChangeNotifier {
       if (data != null) {
         gardenSlots[i] = IdleGardenSlot.fromJson(jsonDecode(data));
       }
+    } catch (e) {
+    gardenSlots[i] = null; // Reset slot if data is corrupted
+    }
     }
 
     // Load brew slots
@@ -1261,6 +1262,9 @@ class GameState extends ChangeNotifier {
       if (data != null) {
         brewSlots[i] = IdleBrewSlot.fromJson(jsonDecode(data));
       }
+  } catch (e) {
+  brewSlots[i] = null; // Reset slot if data is corrupted
+  }
     }
 
     // Process offline progress (max 4 hours)
@@ -1361,6 +1365,8 @@ class GameState extends ChangeNotifier {
     await prefs.setInt("instantGrowTokens", instantGrowTokens);
     await prefs.setInt("instantBrewTokens", instantBrewTokens);
     await prefs.setInt("lastSaveTime", lastSaveTime);
+    await prefs.setInt("doubleXpCharges", doubleXpCharges);
+    await prefs.setInt("doubleGoldCharges", doubleGoldCharges);
 
     for (int i = 0; i < plants.length; i++) {
       await prefs.setInt("storage_$i", storage[i]);
@@ -2076,7 +2082,7 @@ class IdleBrewScreen extends StatelessWidget {
                   borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(50),
                       bottomRight: Radius.circular(50),
-                      topLeft: Radius.circular(20
+                      topLeft: Radius.circular(20),
                           topRight: Radius.circular(20),
                   ),
                 border: Border.all(
