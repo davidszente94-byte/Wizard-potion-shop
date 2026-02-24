@@ -1249,22 +1249,24 @@ class GameState extends ChangeNotifier {
     for (int i = 0; i < maxGardenSlots; i++) {
       String? data = prefs.getString("garden_$i");
       if (data != null) {
-        gardenSlots[i] = IdleGardenSlot.fromJson(jsonDecode(data));
+        try {
+          gardenSlots[i] = IdleGardenSlot.fromJson(jsonDecode(data));
+        } catch (e) {
+          gardenSlots[i] = null;
+        }
       }
-    } catch (e) {
-    gardenSlots[i] = null; // Reset slot if data is corrupted
-    }
     }
 
     // Load brew slots
     for (int i = 0; i < maxBrewSlots; i++) {
       String? data = prefs.getString("brew_$i");
       if (data != null) {
-        brewSlots[i] = IdleBrewSlot.fromJson(jsonDecode(data));
+        try {
+          brewSlots[i] = IdleBrewSlot.fromJson(jsonDecode(data));
+        } catch (e) {
+          brewSlots[i] = null;
+        }
       }
-  } catch (e) {
-  brewSlots[i] = null; // Reset slot if data is corrupted
-  }
     }
 
     // Process offline progress (max 4 hours)
