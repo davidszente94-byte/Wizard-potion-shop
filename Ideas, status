@@ -10,8 +10,9 @@ I want updates into the code. Check the current code and write the full code acc
 	8. correct the "idle system" after logging out. idle production of plant and brews must go on maximum 4 hours after closing the game, then every slot completely stops. at the next login you need to check elapsed time and calculate from that how many was produced from plants and potions (XP, Gold, Crystals etc.. whole game is to be updated)	
 	9. correct the time appearance on the UI. in case a plant or potion takes not exact round minutes, then write  there in format: "1min 59sec". however the loading bar appearance can stay the same
 	10. add daily login rewards, a gold amount based on the actual level of the player when loggin in, according to attached sheet
+    11. add Speed Upgrade levels for plants and potions. Both start at lvl1 at the beginning. Plant speed upg. can be bought directly on the garden screen with a button, while potion speed upg. on the alchemy screen. their prices are also found in the attached excel
 
-
+ATTACH EXCEL WITH: gardenslot brewingslot unlockcosts, buyable-sellable plants, SHOP ITEMs, speed upgrade lvls, daily login rewards, lvlup gifts
 
 
 
