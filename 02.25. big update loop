@@ -1,1 +1,1511 @@
-123
+import 'dart:math';
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+  runApp(const MyApp());
+}
+
+// ==========================================
+// THEME & COLORS - Fantasy Medieval Theme
+// ==========================================
+class MagicColors {
+  static const Color background = Color(0xFF1A0F2E);
+  static const Color surface = Color(0xFF2D1B4E);
+  static const Color surfaceLight = Color(0xFF3D2B5E);
+  static const Color gold = Color(0xFFFFD700);
+  static const Color goldDark = Color(0xFFB8860B);
+  static const Color crystal = Color(0xFF00E5FF);
+  static const Color crystalDark = Color(0xFF0099AA);
+  static const Color earth = Color(0xFF8B4513);
+  static const Color earthLight = Color(0xFFA0522D);
+  static const Color leaf = Color(0xFF228B22);
+  static const Color leafLight = Color(0xFF32CD32);
+  static const Color potionRed = Color(0xFFDC143C);
+  static const Color potionBlue = Color(0xFF4169E1);
+  static const Color potionGreen = Color(0xFF32CD32);
+  static const Color potionPurple = Color(0xFF9932CC);
+  static const Color fire = Color(0xFFFF4500);
+  static const Color textLight = Color(0xFFF0E6FF);
+  static const Color textMuted = Color(0xFFB8A9C9);
+  static const Color common = Color(0xFF9E9E9E);
+  static const Color rare = Color(0xFF2196F3);
+  static const Color epic = Color(0xFF9C27B0);
+}
+
+// ==========================================
+// RESOURCE BAR WIDGET
+// ==========================================
+class ResourceBar extends StatelessWidget {
+  final GameState game;
+  const ResourceBar({super.key, required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            MagicColors.surface.withOpacity(0.9),
+            MagicColors.background.withOpacity(0.9),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: MagicColors.gold.withOpacity(0.3),
+            width: 2,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            blurRadius: 10,
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _resourceItem(
+                  icon: Icons.monetization_on,
+                  color: MagicColors.gold,
+                  value: game.gold,
+                  label: 'Gold',
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Level ${game.level}',
+                          style: const TextStyle(
+                            color: MagicColors.textLight,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: MagicColors.gold.withOpacity(0.3),
+                            ),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: game.xpProgress(),
+                              backgroundColor: Colors.transparent,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                MagicColors.crystal,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${game.xp}/${game.neededExp(game.level)} XP',
+                          style: const TextStyle(
+                            color: MagicColors.textMuted,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                _resourceItem(
+                  icon: Icons.diamond,
+                  color: MagicColors.crystal,
+                  value: game.crystals,
+                  label: 'Crystal',
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Boost tokens display
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (game.goldBoostDuration > 0)
+                  _smallResourceItem(
+                    icon: Icons.monetization_on,
+                    color: Colors.orange,
+                    value: game.goldBoostDuration ~/ 3600,
+                    label: 'h Gold+',
+                  ),
+                if (game.xpBoostDuration > 0) const SizedBox(width: 16),
+                if (game.xpBoostDuration > 0)
+                  _smallResourceItem(
+                    icon: Icons.trending_up,
+                    color: Colors.blue,
+                    value: game.xpBoostDuration ~/ 3600,
+                    label: 'h XP+',
+                  ),
+                if (game.plantSpeedBoostDuration > 0) const SizedBox(width: 16),
+                if (game.plantSpeedBoostDuration > 0)
+                  _smallResourceItem(
+                    icon: Icons.eco,
+                    color: MagicColors.leaf,
+                    value: game.plantSpeedBoostDuration ~/ 3600,
+                    label: 'h Grow+',
+                  ),
+                if (game.potionSpeedBoostDuration > 0) const SizedBox(width: 16),
+                if (game.potionSpeedBoostDuration > 0)
+                  _smallResourceItem(
+                    icon: Icons.local_fire_department,
+                    color: MagicColors.fire,
+                    value: game.potionSpeedBoostDuration ~/ 3600,
+                    label: 'h Brew+',
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // Speed upgrade indicators
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _smallResourceItem(
+                  icon: Icons.speed,
+                  color: MagicColors.leaf,
+                  value: game.growSpeedLevel,
+                  label: 'Grow Lvl',
+                ),
+                const SizedBox(width: 16),
+                _smallResourceItem(
+                  icon: Icons.local_fire_department,
+                  color: MagicColors.fire,
+                  value: game.brewSpeedLevel,
+                  label: 'Brew Lvl',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _resourceItem({
+    required IconData icon,
+    required Color color,
+    required int value,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            color.withOpacity(0.2),
+            color.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 6),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _formatNumber(value),
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  shadows: [
+                    Shadow(
+                      color: color.withOpacity(0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color.withOpacity(0.7),
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _smallResourceItem({
+    required IconData icon,
+    required Color color,
+    required int value,
+    required String label,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 14),
+        const SizedBox(width: 4),
+        Text(
+          '$value',
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(width: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            color: MagicColors.textMuted,
+            fontSize: 10,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatNumber(int n) {
+    if (n >= 1000000) return '${(n/1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n/1000).toStringAsFixed(1)}k';
+    return n.toString();
+  }
+}
+
+// ==========================================
+// GAME DATA CLASSES - REBALANCED PER EXCEL
+// ==========================================
+
+class Plant {
+  final int id;
+  final String name;
+  final int sellPrice;
+  final Duration baseGrowTime;
+  final String icon;
+  final Color color;
+  final int xpValue;
+  final int unlockLevel;
+
+  const Plant({
+    required this.id,
+    required this.name,
+    required this.sellPrice,
+    required this.baseGrowTime,
+    required this.xpValue,
+    required this.icon,
+    required this.color,
+    required this.unlockLevel,
+  });
+}
+
+// Plants matching Excel exactly with unlock levels
+final List<Plant> plants = [
+  const Plant(id: 0, name: "Sunleaf", sellPrice: 4, baseGrowTime: Duration(seconds: 5), xpValue: 1, icon: '🌻', color: Color(0xFFFFD700), unlockLevel: 1),
+  const Plant(id: 1, name: "Moonpetal", sellPrice: 20, baseGrowTime: Duration(seconds: 15), xpValue: 5, icon: '🌸', color: Color(0xFFFFC0CB), unlockLevel: 3),
+  const Plant(id: 2, name: "Starroot", sellPrice: 50, baseGrowTime: Duration(seconds: 30), xpValue: 14, icon: '⭐', color: Color(0xFFFFA500), unlockLevel: 7),
+  const Plant(id: 3, name: "Frost Fern", sellPrice: 250, baseGrowTime: Duration(seconds: 100), xpValue: 65, icon: '❄️', color: Color(0xFF87CEEB), unlockLevel: 13),
+  const Plant(id: 4, name: "Mint Crystal", sellPrice: 650, baseGrowTime: Duration(seconds: 180), xpValue: 180, icon: '💎', color: Color(0xFF00CED1), unlockLevel: 20),
+  const Plant(id: 5, name: "Ember Blossom", sellPrice: 1350, baseGrowTime: Duration(seconds: 250), xpValue: 370, icon: '🔥', color: Color(0xFFFF4500), unlockLevel: 30),
+  const Plant(id: 6, name: "Phoenix Herb", sellPrice: 3500, baseGrowTime: Duration(seconds: 360), xpValue: 1000, icon: '🦅', color: Color(0xFFFF1493), unlockLevel: 40),
+];
+
+class Seed {
+  final int id;
+  final String name;
+  final int cost;
+  final int plantId; // 1:1 mapping now
+  final Color color;
+  final String icon;
+  final String description;
+  final int unlockLevel;
+
+  const Seed({
+    required this.id,
+    required this.name,
+    required this.cost,
+    required this.plantId,
+    required this.color,
+    required this.icon,
+    this.description = '',
+    required this.unlockLevel,
+  });
+}
+
+// Seeds matching Excel exactly - 1:1 with plants, same unlock levels
+final List<Seed> seeds = [
+  const Seed(id: 0, name: "Sunleaf Seed", cost: 0, plantId: 0, color: Colors.green, icon: '🌿', description: 'Basic magical herb', unlockLevel: 1),
+  const Seed(id: 1, name: "Moonpetal Seed", cost: 1, plantId: 1, color: Colors.yellow, icon: '⭐', description: 'Glows with inner light', unlockLevel: 3),
+  const Seed(id: 2, name: "Starroot Seed", cost: 5, plantId: 2, color: Colors.blue, icon: '🔮', description: 'Magical essence contained', unlockLevel: 7),
+  const Seed(id: 3, name: "Frost Fern Seed", cost: 15, plantId: 3, color: Colors.orange, icon: '🏺', description: 'From forgotten times', unlockLevel: 13),
+  const Seed(id: 4, name: "Mint Crystal Seed", cost: 35, plantId: 4, color: Colors.purple, icon: '🌙', description: 'Stardust infused', unlockLevel: 20),
+  const Seed(id: 5, name: "Ember Blossom Seed", cost: 50, plantId: 5, color: Colors.red, icon: '🔥', description: 'Burns with eternal flame', unlockLevel: 30),
+  const Seed(id: 6, name: "Phoenix Herb Seed", cost: 75, plantId: 6, color: Colors.pink, icon: '🦅', description: 'Legendary resurrection herb', unlockLevel: 40),
+];
+
+enum Rarity { common, rare, epic }
+
+class Recipe {
+  final List<int> ids; // Now always 3 of the same
+  final String name;
+  final Rarity rarity;
+  final String icon;
+  final int unlockLevel;
+  final int baseBrewTime; // seconds
+  final int sellPrice;
+  final int xpValue;
+
+  const Recipe({
+    required this.ids,
+    required this.name,
+    required this.rarity,
+    required this.icon,
+    required this.unlockLevel,
+    required this.baseBrewTime,
+    required this.sellPrice,
+    required this.xpValue,
+  });
+
+  String get key {
+    final sorted = List<int>.from(ids)..sort();
+    return sorted.join("_");
+  }
+  
+  int get plantTier => ids.first;
+}
+
+// 7 Core Potions only - matching Excel exactly
+const List<Recipe> allRecipes = [
+  Recipe(ids: [0,0,0], name: "Solar Tonic", rarity: Rarity.common, icon: '☀️', unlockLevel: 1, baseBrewTime: 15, sellPrice: 4, xpValue: 7),
+  Recipe(ids: [1,1,1], name: "Lunar Draught", rarity: Rarity.common, icon: '🌙', unlockLevel: 3, baseBrewTime: 45, sellPrice: 20, xpValue: 45),
+  Recipe(ids: [2,2,2], name: "Stellar Essence", rarity: Rarity.common, icon: '🌟', unlockLevel: 7, baseBrewTime: 90, sellPrice: 50, xpValue: 130),
+  Recipe(ids: [3,3,3], name: "Fern Extract", rarity: Rarity.rare, icon: '🌲', unlockLevel: 13, baseBrewTime: 300, sellPrice: 250, xpValue: 700),
+  Recipe(ids: [4,4,4], name: "Pure Celestial", rarity: Rarity.rare, icon: '👑', unlockLevel: 20, baseBrewTime: 540, sellPrice: 650, xpValue: 1900),
+  Recipe(ids: [5,5,5], name: "Ember Core", rarity: Rarity.epic, icon: '💥', unlockLevel: 30, baseBrewTime: 750, sellPrice: 1350, xpValue: 4000),
+  Recipe(ids: [6,6,6], name: "Elixir of Rebirth", rarity: Rarity.epic, icon: '🦋', unlockLevel: 40, baseBrewTime: 1080, sellPrice: 3500, xpValue: 10000),
+];
+
+String getPotionName(List<int> ids) {
+  final sorted = List<int>.from(ids)..sort();
+  final key = sorted.join("_");
+  for (final recipe in allRecipes) {
+    if (recipe.key == key) return recipe.name;
+  }
+  return "Unknown Potion";
+}
+
+Recipe? getRecipeByKey(String key) {
+  for (final recipe in allRecipes) {
+    if (recipe.key == key) return recipe;
+  }
+  return null;
+}
+
+// Improved time formatting: shows "1min 59sec" for non-round times
+String formatTime(int seconds) {
+  if (seconds <= 0) return "Ready";
+  if (seconds < 60) return "$seconds sec";
+  
+  int minutes = seconds ~/ 60;
+  int remainingSeconds = seconds % 60;
+  
+  if (minutes < 60) {
+    if (remainingSeconds == 0) {
+      return "$minutes min";
+    } else {
+      return "${minutes}min ${remainingSeconds}sec";
+    }
+  }
+  
+  int hours = minutes ~/ 60;
+  int remainingMinutes = minutes % 60;
+  if (remainingMinutes == 0) {
+    return "$hours h";
+  } else {
+    return "${hours}h ${remainingMinutes}min";
+  }
+}
+
+String formatDuration(Duration d) {
+  if (d.inSeconds < 60) return "${d.inSeconds}s";
+  if (d.inMinutes < 60) return "${d.inMinutes}m";
+  return "${d.inHours}h ${d.inMinutes % 60}m";
+}
+
+enum ShopCurrency { gold, crystal }
+
+class ShopItem {
+  final String id;
+  final String name;
+  final String description;
+  final int price;
+  final ShopCurrency currency;
+  final void Function(GameState) onBuy;
+  final IconData icon;
+  final Color color;
+  final bool isSpeedUpgrade;
+  final bool isDailyLimited;
+  final String? plantId; // For plant purchases
+
+  ShopItem({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.price,
+    required this.currency,
+    required this.onBuy,
+    this.icon = Icons.shopping_bag,
+    this.color = Colors.white,
+    this.isSpeedUpgrade = false,
+    this.isDailyLimited = false,
+    this.plantId,
+  });
+}
+
+// ==========================================
+// LEVEL UP REWARDS DATA FROM EXCEL
+// ==========================================
+Map<int, String> getLevelUpGift(int level) {
+  final gifts = {
+    2: "+1 crystal",
+    3: "1x Gold Boost Token",
+    4: "+1 crystal",
+    5: "+5 crystal",
+    6: "+1 crystal",
+    7: "1x XP Boost Token",
+    8: "+1 crystal",
+    9: "+1 crystal",
+    10: "+1 unlocked gardenslot",
+    11: "+1 crystal",
+    12: "+1 crystal",
+    13: "+1 crystal",
+    14: "+1 crystal",
+    15: "+5 crystal",
+    16: "+1 crystal",
+    17: "+1 crystal",
+    18: "+1 crystal",
+    19: "+1 crystal",
+    20: "+1 unlocked brewingslot",
+    21: "+1 crystal",
+    22: "+1 crystal",
+    23: "1x Gold Boost Token",
+    24: "+1 crystal",
+    25: "+5 crystal",
+    26: "+1 crystal",
+    27: "1x XP Boost Token",
+    28: "+1 crystal",
+    29: "+1 crystal",
+    30: "+1 unlocked gardenslot",
+    31: "+1 crystal",
+    32: "+1 crystal",
+    33: "+1 crystal",
+    34: "+1 crystal",
+    35: "+5 crystal",
+    36: "+1 crystal",
+    37: "+1 crystal",
+    38: "+1 crystal",
+    39: "+1 crystal",
+    40: "+1 unlocked brewingslot",
+    41: "+1 crystal",
+    42: "+1 crystal",
+    43: "1x Gold Boost Token",
+    44: "+1 crystal",
+    45: "+5 crystal",
+    46: "+1 crystal",
+    47: "1x XP Boost Token",
+    48: "+1 crystal",
+    49: "+1 crystal",
+    50: "+50 crystal",
+  };
+  
+  if (gifts.containsKey(level)) {
+    return {level: gifts[level]!};
+  }
+  return {};
+}
+
+// Daily login rewards from Excel
+int getDailyLoginReward(int level) {
+  final rewards = {
+    1: 960, 2: 960, 3: 960, 4: 960, 5: 2500,
+    6: 4000, 7: 4000, 8: 4000, 9: 5000, 10: 8000,
+    11: 8000, 12: 8000, 13: 12500, 14: 12500, 15: 18500,
+    16: 18500, 17: 18500, 18: 18500, 19: 18500, 20: 41500,
+    21: 41500, 22: 41500, 23: 41500, 24: 41500, 25: 51500,
+    26: 62000, 27: 62000, 28: 62000, 29: 62000, 30: 115500,
+    31: 135000, 32: 135000, 33: 135000, 34: 135000, 35: 169000,
+    36: 193000, 37: 193000, 38: 193000, 39: 350000, 40: 500000,
+    41: 560000, 42: 560000, 43: 560000, 44: 560000, 45: 1000000,
+    46: 1120000, 47: 1120000, 48: 1120000, 49: 1120000, 50: 1120000,
+  };
+  return rewards[level] ?? rewards[50] ?? 1000;
+}
+
+// Slot unlock costs from Excel
+Map<String, int> getSlotUnlockCost(int slotIndex) {
+  // slotIndex is 0-based, Excel is 1-based
+  final costs = {
+    1: {"gold": 0, "crystal": 0},
+    2: {"gold": 2000, "crystal": 1},
+    3: {"gold": 25000, "crystal": 3},
+    4: {"gold": 80000, "crystal": 5},
+    5: {"gold": 250000, "crystal": 10},
+    6: {"gold": 400000, "crystal": 15},
+    7: {"gold": 800000, "crystal": 20},
+    8: {"gold": 1200000, "crystal": 25},
+    9: {"gold": 3000000, "crystal": 30},
+    10: {"gold": 7000000, "crystal": 50},
+  };
+  return costs[slotIndex + 1] ?? {"gold": 0, "crystal": 0};
+}
+
+// ==========================================
+// IDLE SLOT CLASSES
+// ==========================================
+class IdleGardenSlot {
+  int seedId;
+  int startTime;
+  int cyclesCompleted;
+  bool isActive;
+
+  IdleGardenSlot({
+    required this.seedId,
+    required this.startTime,
+    this.cyclesCompleted = 0,
+    this.isActive = true,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      "seedId": seedId,
+      "start": startTime,
+      "cycles": cyclesCompleted,
+      "active": isActive,
+    };
+  }
+
+  factory IdleGardenSlot.fromJson(Map<String, dynamic> json) {
+    return IdleGardenSlot(
+      seedId: json["seedId"],
+      startTime: json["start"],
+      cyclesCompleted: json["cycles"] ?? 0,
+      isActive: json["active"] ?? true,
+    );
+  }
+}
+
+class IdleBrewSlot {
+  String recipeKey;
+  int startTime;
+  int cyclesCompleted;
+  bool isActive;
+
+  IdleBrewSlot({
+    required this.recipeKey,
+    required this.startTime,
+    this.cyclesCompleted = 0,
+    this.isActive = true,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      "recipe": recipeKey,
+      "start": startTime,
+      "cycles": cyclesCompleted,
+      "active": isActive,
+    };
+  }
+
+  factory IdleBrewSlot.fromJson(Map<String, dynamic> json) {
+    return IdleBrewSlot(
+      recipeKey: json["recipe"],
+      startTime: json["start"],
+      cyclesCompleted: json["cycles"] ?? 0,
+      isActive: json["active"] ?? true,
+    );
+  }
+}
+
+// ==========================================
+// BOOST TOKEN TYPES
+// ==========================================
+enum BoostType { gold150, gold200, xp150, xp200, plantSpeed150, plantSpeed200, potionSpeed150, potionSpeed200 }
+
+class ActiveBoost {
+  final BoostType type;
+  final int endTime; // timestamp when boost expires
+
+  ActiveBoost({required this.type, required this.endTime});
+
+  Map<String, dynamic> toJson() => {
+    'type': type.index,
+    'endTime': endTime,
+  };
+
+  factory ActiveBoost.fromJson(Map<String, dynamic> json) => ActiveBoost(
+    type: BoostType.values[json['type']],
+    endTime: json['endTime'],
+  );
+}
+
+// ==========================================
+// GAME STATE - IDLE TYCOON REBALANCED
+// ==========================================
+class GameState extends ChangeNotifier {
+  List<ShopItem> shopItems = [];
+  int gold = 0;
+  int crystals = 0;
+  
+  // Dual speed system - separate tracks (1-10)
+  int growSpeedLevel = 1; // Start at 1
+  int brewSpeedLevel = 1; // Start at 1
+  
+  int level = 1;
+  int xp = 0;
+  int unlockedSlots = 1;
+  int unlockedBrewSlots = 1;
+  int lastGoldGain = 0;
+  int lastQuestGain = 0;
+  bool showGoldAnimation = false;
+  int lastSaveTime = 0;
+  int lastLoginDay = 0; // For daily login tracking
+  int consecutiveLogins = 0;
+
+  static const int maxGardenSlots = 10;
+  static const int maxBrewSlots = 10;
+
+  // Idle slots
+  List<IdleGardenSlot?> gardenSlots = List.generate(maxGardenSlots, (_) => null);
+  List<IdleBrewSlot?> brewSlots = List.generate(maxBrewSlots, (_) => null);
+
+  // Storage
+  List<int> storage = List.generate(plants.length, (_) => 0);
+  List<int> seedStorage = List.generate(seeds.length, (_) => 0);
+
+  // Boost tokens inventory (daily purchase tracking)
+  Map<String, int> dailyPurchases = {}; // itemId -> count
+  int lastShopResetDay = 0;
+  
+  // Active boosts
+  List<ActiveBoost> activeBoosts = [];
+
+  Timer? _ticker;
+  late SharedPreferences prefs;
+
+  // 4 hour idle cap
+  static const int maxIdleSeconds = 4 * 60 * 60;
+
+  // Speed multipliers from Excel (applied cumulatively)
+  final List<double> speedMultipliers = [1.0, 0.9, 0.9, 0.9, 0.8, 0.8, 0.8, 0.8, 0.7, 0.5];
+  
+  // Grow speed upgrade costs from Excel
+  final List<List<int>> growSpeedCosts = [
+    [0, 75, 80, 90, 225, 280, 350, 435, 935, 3105],    // Sunleaf (seed 0)
+    [0, 120, 135, 150, 375, 465, 580, 725, 1555, 5170], // Moonpetal (seed 1)
+    [0, 170, 190, 210, 520, 650, 815, 1015, 2175, 7235], // Starroot (seed 2)
+    [0, 235, 260, 290, 725, 905, 1130, 1415, 3025, 10080], // Frost Fern (seed 3)
+    [0, 360, 400, 445, 1115, 1390, 1740, 2175, 4655, 15505], // Mint Crystal (seed 4)
+    [0, 535, 595, 660, 1645, 2060, 2570, 3215, 6885, 22945], // Ember Blossom (seed 5)
+    [0, 1000, 1115, 1235, 3090, 3860, 4825, 6030, 12920, 43060], // Phoenix Herb (seed 6)
+  ];
+  
+  // Brew speed upgrade costs from Excel
+  final List<List<int>> brewSpeedCosts = [
+    [0, 100, 110, 120, 300, 375, 465, 580, 1245, 4135],   // Solar Tonic (potion 0)
+    [0, 160, 180, 200, 495, 620, 775, 965, 2070, 6890],   // Lunar Draught (potion 1)
+    [0, 200, 225, 250, 620, 775, 965, 1210, 2585, 8615], // Stellar Essence (potion 2)
+    [0, 300, 335, 375, 930, 1160, 1450, 1810, 3880, 12920], // Fern Extract (potion 3)
+    [0, 435, 485, 535, 1340, 1675, 2090, 2615, 5600, 18660], // Pure Celestial (potion 4)
+    [0, 650, 720, 800, 2000, 2500, 3125, 3910, 8375, 27905], // Ember Core (potion 5)
+    [0, 1170, 1300, 1445, 3605, 4505, 5630, 7035, 15075, 50235] // Elixir of Rebirth (potion 6)
+  ];
+
+  void startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateBoosts();
+      processIdleGarden();
+      processIdleBrew();
+      notifyListeners();
+    });
+  }
+
+  void _updateBoosts() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    activeBoosts.removeWhere((boost) => boost.endTime <= now);
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  // Check if boost is active
+  bool isBoostActive(BoostType type) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return activeBoosts.any((b) => b.type == type && b.endTime > now);
+  }
+
+  // Get boost multiplier
+  double getBoostMultiplier(BoostType type150, BoostType type200, double boost150, double boost200) {
+    if (isBoostActive(type200)) return boost200;
+    if (isBoostActive(type150)) return boost150;
+    return 1.0;
+  }
+
+  int get goldBoostDuration {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final goldBoosts = activeBoosts.where((b) => 
+      b.type == BoostType.gold150 || b.type == BoostType.gold200);
+    if (goldBoosts.isEmpty) return 0;
+    return ((goldBoosts.map((b) => b.endTime).reduce((a, b) => a > b ? a : b) - now) / 1000).ceil();
+  }
+
+  int get xpBoostDuration {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final xpBoosts = activeBoosts.where((b) => 
+      b.type == BoostType.xp150 || b.type == BoostType.xp200);
+    if (xpBoosts.isEmpty) return 0;
+    return ((xpBoosts.map((b) => b.endTime).reduce((a, b) => a > b ? a : b) - now) / 1000).ceil();
+  }
+
+  int get plantSpeedBoostDuration {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final boosts = activeBoosts.where((b) => 
+      b.type == BoostType.plantSpeed150 || b.type == BoostType.plantSpeed200);
+    if (boosts.isEmpty) return 0;
+    return ((boosts.map((b) => b.endTime).reduce((a, b) => a > b ? a : b) - now) / 1000).ceil();
+  }
+
+  int get potionSpeedBoostDuration {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final boosts = activeBoosts.where((b) => 
+      b.type == BoostType.potionSpeed150 || b.type == BoostType.potionSpeed200);
+    if (boosts.isEmpty) return 0;
+    return ((boosts.map((b) => b.endTime).reduce((a, b) => a > b ? a : b) - now) / 1000).ceil();
+  }
+
+  // Get current grow speed multiplier including boosts
+  double getGrowSpeedMultiplier() {
+    double baseMultiplier = 1.0;
+    for (int i = 1; i < growSpeedLevel && i < speedMultipliers.length; i++) {
+      baseMultiplier *= speedMultipliers[i];
+    }
+    
+    // Apply boost
+    double boostMult = getBoostMultiplier(BoostType.plantSpeed150, BoostType.plantSpeed200, 1.5, 2.0);
+    return baseMultiplier / boostMult; // Dividing because lower is faster
+  }
+
+  // Get current brew speed multiplier including boosts
+  double getBrewSpeedMultiplier() {
+    double baseMultiplier = 1.0;
+    for (int i = 1; i < brewSpeedLevel && i < speedMultipliers.length; i++) {
+      baseMultiplier *= speedMultipliers[i];
+    }
+    
+    // Apply boost
+    double boostMult = getBoostMultiplier(BoostType.potionSpeed150, BoostType.potionSpeed200, 1.5, 2.0);
+    return baseMultiplier / boostMult;
+  }
+
+  // Get grow time for a specific plant with upgrades
+  Duration getGrowTime(int plantId) {
+    final baseTime = plants[plantId].baseGrowTime.inSeconds;
+    final multiplier = getGrowSpeedMultiplier();
+    return Duration(seconds: (baseTime * multiplier).round());
+  }
+
+  // Get brew time for a recipe with upgrades
+  Duration getBrewTime(Recipe recipe) {
+    final baseTime = recipe.baseBrewTime;
+    final multiplier = getBrewSpeedMultiplier();
+    return Duration(seconds: (baseTime * multiplier).round());
+  }
+
+  // ==========================================
+  // IDLE GARDEN SYSTEM - 1:1 SEED TO PLANT
+  // ==========================================
+  void processIdleGarden() {
+    bool changed = false;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    for (int i = 0; i < maxGardenSlots; i++) {
+      final slot = gardenSlots[i];
+      if (slot == null || !slot.isActive) continue;
+
+      final seed = seeds[slot.seedId];
+      final growTime = getGrowTime(seed.plantId).inSeconds;
+      
+      final elapsed = (now - slot.startTime) ~/ 1000;
+      int possibleCycles = elapsed ~/ growTime;
+
+      // Check gold for seeds (seed 0 is free)
+      int affordableCycles = possibleCycles;
+      if (seed.cost > 0) {
+        int maxAffordable = gold ~/ seed.cost;
+        affordableCycles = possibleCycles.clamp(0, maxAffordable);
+      }
+
+      // Apply cycles
+      for (int c = 0; c < affordableCycles; c++) {
+        if (seed.cost > 0) gold -= seed.cost;
+        
+        // 1:1 mapping - guaranteed plant
+        storage[seed.plantId]++;
+        slot.cyclesCompleted++;
+        
+        // Apply XP boost
+        int xpGain = plants[seed.plantId].xpValue;
+        double xpMult = getBoostMultiplier(BoostType.xp150, BoostType.xp200, 1.5, 2.0);
+        xpGain = (xpGain * xpMult).round();
+        
+        gainXP(xpGain);
+        changed = true;
+      }
+
+      if (affordableCycles > 0) {
+        slot.startTime += affordableCycles * growTime * 1000;
+      }
+
+      // Stop if out of gold
+      if (seed.cost > 0 && gold < seed.cost) {
+        slot.isActive = false;
+      }
+    }
+
+    if (changed) save();
+  }
+
+  double getGardenSlotProgress(int slotIndex) {
+    final slot = gardenSlots[slotIndex];
+    if (slot == null) return 0;
+    final seed = seeds[slot.seedId];
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final elapsed = (now - slot.startTime) / 1000;
+    final growTime = getGrowTime(seed.plantId).inSeconds;
+    return (elapsed / growTime).clamp(0.0, 1.0);
+  }
+
+  String getGardenSlotTimeLeft(int slotIndex) {
+    final slot = gardenSlots[slotIndex];
+    if (slot == null) return "";
+    final seed = seeds[slot.seedId];
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final elapsed = (now - slot.startTime) ~/ 1000;
+    final growTime = getGrowTime(seed.plantId).inSeconds;
+    final remaining = growTime - (elapsed % growTime);
+    return formatTime(remaining);
+  }
+
+  double getGardenPlantsPerHour(int slotIndex) {
+    final slot = gardenSlots[slotIndex];
+    if (slot == null) return 0;
+    final seed = seeds[slot.seedId];
+    final growTime = getGrowTime(seed.plantId).inSeconds;
+    if (growTime <= 0) return 0;
+    return 3600.0 / growTime;
+  }
+
+  void startIdleGarden(int slotIndex, int seedId) {
+    if (slotIndex >= unlockedSlots) return;
+    if (level < seeds[seedId].unlockLevel) return; // Check unlock level
+    
+    gardenSlots[slotIndex] = IdleGardenSlot(
+      seedId: seedId,
+      startTime: DateTime.now().millisecondsSinceEpoch,
+    );
+    save();
+    notifyListeners();
+  }
+
+  void stopIdleGarden(int slotIndex) {
+    gardenSlots[slotIndex] = null;
+    save();
+    notifyListeners();
+  }
+
+  // ==========================================
+  // IDLE BREW SYSTEM
+  // ==========================================
+  void processIdleBrew() {
+    bool changed = false;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    for (int i = 0; i < maxBrewSlots; i++) {
+      final slot = brewSlots[i];
+      if (slot == null || !slot.isActive) continue;
+
+      final recipe = getRecipeByKey(slot.recipeKey);
+      if (recipe == null) continue;
+
+      final brewTime = getBrewTime(recipe).inSeconds;
+      final elapsed = (now - slot.startTime) ~/ 1000;
+      int possibleCycles = elapsed ~/ brewTime;
+
+      // Check materials (3 of same plant)
+      int plantId = recipe.plantTier;
+      int available = storage[plantId] ~/ 3;
+      int affordableCycles = possibleCycles.clamp(0, available);
+
+      for (int c = 0; c < affordableCycles; c++) {
+        storage[plantId] -= 3;
+        
+        int sellPrice = recipe.sellPrice;
+        
+        // Apply gold boost
+        double goldMult = getBoostMultiplier(BoostType.gold150, BoostType.gold200, 1.5, 2.0);
+        sellPrice = (sellPrice * goldMult).round();
+        
+        gold += sellPrice;
+
+        int xpGain = recipe.xpValue;
+        // Apply XP boost
+        double xpMult = getBoostMultiplier(BoostType.xp150, BoostType.xp200, 1.5, 2.0);
+        xpGain = (xpGain * xpMult).round();
+        
+        gainXP(xpGain);
+
+        slot.cyclesCompleted++;
+        changed = true;
+      }
+
+      if (affordableCycles > 0) {
+        slot.startTime += affordableCycles * brewTime * 1000;
+      }
+
+      if (storage[recipe.plantTier] < 3) slot.isActive = false;
+    }
+
+    if (changed) {
+      save();
+      notifyListeners();
+    }
+  }
+
+  double getBrewSlotProgress(int slotIndex) {
+    final slot = brewSlots[slotIndex];
+    if (slot == null) return 0;
+    final recipe = getRecipeByKey(slot.recipeKey);
+    if (recipe == null) return 0;
+    final brewTime = getBrewTime(recipe).inSeconds;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final elapsed = (now - slot.startTime) / 1000;
+    return (elapsed / brewTime).clamp(0.0, 1.0);
+  }
+
+  String getBrewSlotTimeLeft(int slotIndex) {
+    final slot = brewSlots[slotIndex];
+    if (slot == null) return "";
+    final recipe = getRecipeByKey(slot.recipeKey);
+    if (recipe == null) return "";
+    final brewTime = getBrewTime(recipe).inSeconds;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final elapsed = (now - slot.startTime) ~/ 1000;
+    final remaining = brewTime - (elapsed % brewTime);
+    return formatTime(remaining);
+  }
+
+  double getBrewGoldPerHour(int slotIndex) {
+    final slot = brewSlots[slotIndex];
+    if (slot == null) return 0;
+    final recipe = getRecipeByKey(slot.recipeKey);
+    if (recipe == null) return 0;
+    final brewTime = getBrewTime(recipe).inSeconds;
+    if (brewTime <= 0) return 0;
+    double cyclesPerHour = 3600.0 / brewTime;
+    double goldMult = getBoostMultiplier(BoostType.gold150, BoostType.gold200, 1.5, 2.0);
+    return (recipe.sellPrice * goldMult) * cyclesPerHour;
+  }
+
+  void startIdleBrew(int slotIndex, String recipeKey) {
+    if (slotIndex >= unlockedBrewSlots) return;
+    brewSlots[slotIndex] = IdleBrewSlot(
+      recipeKey: recipeKey,
+      startTime: DateTime.now().millisecondsSinceEpoch,
+    );
+    save();
+    notifyListeners();
+  }
+
+  void stopIdleBrew(int slotIndex) {
+    brewSlots[slotIndex] = null;
+    save();
+    notifyListeners();
+  }
+
+  // ==========================================
+  // RECIPE UNLOCKS
+  // ==========================================
+  bool isRecipeUnlocked(String recipeKey) {
+    final recipe = getRecipeByKey(recipeKey);
+    if (recipe == null) return false;
+    return level >= recipe.unlockLevel;
+  }
+
+  // ==========================================
+  // SEED UNLOCKS (matching potions)
+  // ==========================================
+  bool isSeedUnlocked(int seedId) {
+    return level >= seeds[seedId].unlockLevel;
+  }
+
+  // ==========================================
+  // PROGRESSION - EXCEL EXP SYSTEM
+  // ==========================================
+  
+  // EXP requirements from Excel (Level 1-46)
+  final List<int> expRequirements = [
+    100, 400, 1000, 5000, 12000, // 1-5
+    14000, 15000, 16000, 17000, 18000, // 6-10
+    24000, 32000, 45000, 60000, 80000, // 11-15
+    110000, 140000, 170000, 220000, 286000, // 16-20
+    371800, 483340, 628342, 816845, 1061898, // 21-25
+    1380467, 1794608, 2332990, 3032887, 3942753, // 26-30
+    4139891, 4346885, 4564229, 4792441, 5032063, // 31-35
+    5283666, 5547849, 5825242, 6116504, 6422329, // 36-40
+    6743445, 7080618, 7434649, 7806381, 8196700, // 41-45
+    8606535 // 46
+  ];
+
+  int neededExp(int lvl) {
+    if (lvl < 1) return 100;
+    if (lvl > expRequirements.length) return expRequirements.last * 2;
+    return expRequirements[lvl - 1];
+  }
+
+  double xpProgress() {
+    final needed = neededExp(level);
+    return (xp / needed).clamp(0.0, 1.0);
+  }
+
+  // Level up with rewards
+  List<String> gainXP(int amount) {
+    xp += amount;
+    List<String> rewards = [];
+    bool leveled = false;
+    
+    while (xp >= neededExp(level)) {
+      xp -= neededExp(level);
+      level++;
+      leveled = true;
+      
+      // Apply level up rewards from Excel
+      final gift = getLevelUpGift(level);
+      if (gift.isNotEmpty) {
+        final giftText = gift.values.first;
+        rewards.add("Level $level: $giftText");
+        
+        // Apply the reward
+        if (giftText.contains("crystal")) {
+          final match = RegExp(r'\\+(\d+)').firstMatch(giftText);
+          if (match != null) {
+            crystals += int.parse(match.group(1)!);
+          }
+        } else if (giftText.contains("Gold Boost Token")) {
+          // Add gold boost token - instant activation for 4 hours
+          final now = DateTime.now().millisecondsSinceEpoch;
+          activeBoosts.add(ActiveBoost(
+            type: BoostType.gold150,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+        } else if (giftText.contains("XP Boost Token")) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          activeBoosts.add(ActiveBoost(
+            type: BoostType.xp150,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+        } else if (giftText.contains("gardenslot") && unlockedSlots < maxGardenSlots) {
+          unlockedSlots++;
+        } else if (giftText.contains("brewingslot") && unlockedBrewSlots < maxBrewSlots) {
+          unlockedBrewSlots++;
+        }
+      }
+    }
+    
+    if (leveled) notifyListeners();
+    return rewards;
+  }
+
+  // ==========================================
+  // SLOT UNLOCKS - GOLD OR CRYSTAL
+  // ==========================================
+  
+  Map<String, int> getGardenSlotUnlockCost(int slotIndex) {
+    return getSlotUnlockCost(slotIndex);
+  }
+
+  void unlockGardenSlotWithGold() {
+    if (unlockedSlots >= maxGardenSlots) return;
+    final costs = getSlotUnlockCost(unlockedSlots);
+    final goldCost = costs["gold"] ?? 0;
+    
+    if (goldCost > 0 && gold >= goldCost) {
+      gold -= goldCost;
+      unlockedSlots++;
+      save();
+      notifyListeners();
+    }
+  }
+
+  void unlockGardenSlotWithCrystals() {
+    if (unlockedSlots >= maxGardenSlots) return;
+    final costs = getSlotUnlockCost(unlockedSlots);
+    final crystalCost = costs["crystal"] ?? 0;
+    
+    if (crystalCost > 0 && crystals >= crystalCost) {
+      crystals -= crystalCost;
+      unlockedSlots++;
+      save();
+      notifyListeners();
+    }
+  }
+
+  Map<String, int> getBrewSlotUnlockCost(int slotIndex) {
+    return getSlotUnlockCost(slotIndex);
+  }
+
+  void unlockBrewSlotWithGold() {
+    if (unlockedBrewSlots >= maxBrewSlots) return;
+    final costs = getSlotUnlockCost(unlockedBrewSlots);
+    final goldCost = costs["gold"] ?? 0;
+    
+    if (goldCost > 0 && gold >= goldCost) {
+      gold -= goldCost;
+      unlockedBrewSlots++;
+      save();
+      notifyListeners();
+    }
+  }
+
+  void unlockBrewSlotWithCrystals() {
+    if (unlockedBrewSlots >= maxBrewSlots) return;
+    final costs = getSlotUnlockCost(unlockedBrewSlots);
+    final crystalCost = costs["crystal"] ?? 0;
+    
+    if (crystalCost > 0 && crystals >= crystalCost) {
+      crystals -= crystalCost;
+      unlockedBrewSlots++;
+      save();
+      notifyListeners();
+    }
+  }
+
+  // ==========================================
+  // SPEED UPGRADE SYSTEM
+  // ==========================================
+  
+  // Get cost for next grow speed upgrade (average of all unlocked seeds)
+  int getNextGrowSpeedCost() {
+    if (growSpeedLevel >= 10) return -1; // Max level
+    
+    int totalCost = 0;
+    int count = 0;
+    for (int i = 0; i < seeds.length; i++) {
+      if (level >= seeds[i].unlockLevel) {
+        totalCost += growSpeedCosts[i][growSpeedLevel];
+        count++;
+      }
+    }
+    return count > 0 ? (totalCost / count).round() : growSpeedCosts[0][growSpeedLevel];
+  }
+
+  // Get cost for next brew speed upgrade (average of all unlocked potions)
+  int getNextBrewSpeedCost() {
+    if (brewSpeedLevel >= 10) return -1;
+    
+    int totalCost = 0;
+    int count = 0;
+    for (int i = 0; i < allRecipes.length; i++) {
+      if (level >= allRecipes[i].unlockLevel) {
+        totalCost += brewSpeedCosts[i][brewSpeedLevel];
+        count++;
+      }
+    }
+    return count > 0 ? (totalCost / count).round() : brewSpeedCosts[0][brewSpeedLevel];
+  }
+
+  void upgradeGrowSpeed() {
+    if (growSpeedLevel >= 10) return;
+    int cost = getNextGrowSpeedCost();
+    if (cost < 0) return;
+    if (gold >= cost) {
+      gold -= cost;
+      growSpeedLevel++;
+      initShop();
+      save();
+      notifyListeners();
+    }
+  }
+
+  void upgradeBrewSpeed() {
+    if (brewSpeedLevel >= 10) return;
+    int cost = getNextBrewSpeedCost();
+    if (cost < 0) return;
+    if (gold >= cost) {
+      gold -= cost;
+      brewSpeedLevel++;
+      initShop();
+      save();
+      notifyListeners();
+    }
+  }
+
+  // ==========================================
+  // SHOP SYSTEM - NEW ITEMS PER EXCEL
+  // ==========================================
+  
+  void resetDailyPurchases() {
+    final now = DateTime.now();
+    final currentDay = now.year * 10000 + now.month * 100 + now.day;
+    if (currentDay != lastShopResetDay) {
+      dailyPurchases.clear();
+      lastShopResetDay = currentDay;
+    }
+  }
+
+  bool canBuyDailyItem(String itemId) {
+    resetDailyPurchases();
+    return (dailyPurchases[itemId] ?? 0) < 1;
+  }
+
+  void initShop() {
+    shopItems = [];
+    resetDailyPurchases();
+    
+    // Boost tokens from Excel (daily limited)
+    final boostItems = [
+      ShopItem(
+        id: "gold_boost_150",
+        name: "Gold Boost Token (150%)",
+        description: "+50% Gold for 4 hours. Instant effect. Daily limit: 1",
+        price: 10,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          g.activeBoosts.add(ActiveBoost(
+            type: BoostType.gold150,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+          g.dailyPurchases["gold_boost_150"] = (g.dailyPurchases["gold_boost_150"] ?? 0) + 1;
+        },
+        icon: Icons.monetization_on,
+        color: Colors.orange,
+        isDailyLimited: true,
+      ),
+      ShopItem(
+        id: "xp_boost_150",
+        name: "XP Boost Token (150%)",
+        description: "+50% XP for 4 hours. Instant effect. Daily limit: 1",
+        price: 10,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          g.activeBoosts.add(ActiveBoost(
+            type: BoostType.xp150,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+          g.dailyPurchases["xp_boost_150"] = (g.dailyPurchases["xp_boost_150"] ?? 0) + 1;
+        },
+        icon: Icons.trending_up,
+        color: Colors.blue,
+        isDailyLimited: true,
+      ),
+      ShopItem(
+        id: "gold_boost_200",
+        name: "Gold Boost Token (200%)",
+        description: "+100% Gold for 4 hours. Instant effect. Daily limit: 1",
+        price: 20,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          g.activeBoosts.add(ActiveBoost(
+            type: BoostType.gold200,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+          g.dailyPurchases["gold_boost_200"] = (g.dailyPurchases["gold_boost_200"] ?? 0) + 1;
+        },
+        icon: Icons.monetization_on,
+        color: Colors.orange,
+        isDailyLimited: true,
+      ),
+      ShopItem(
+        id: "xp_boost_200",
+        name: "XP Boost Token (200%)",
+        description: "+100% XP for 4 hours. Instant effect. Daily limit: 1",
+        price: 20,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          g.activeBoosts.add(ActiveBoost(
+            type: BoostType.xp200,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+          g.dailyPurchases["xp_boost_200"] = (g.dailyPurchases["xp_boost_200"] ?? 0) + 1;
+        },
+        icon: Icons.trending_up,
+        color: Colors.blue,
+        isDailyLimited: true,
+      ),
+      ShopItem(
+        id: "plant_speed_150",
+        name: "Plant Speed Boost (150%)",
+        description: "+50% Plant speed for 4 hours. Instant effect. Daily limit: 1",
+        price: 10,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          g.activeBoosts.add(ActiveBoost(
+            type: BoostType.plantSpeed150,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+          g.dailyPurchases["plant_speed_150"] = (g.dailyPurchases["plant_speed_150"] ?? 0) + 1;
+        },
+        icon: Icons.eco,
+        color: MagicColors.leaf,
+        isDailyLimited: true,
+      ),
+      ShopItem(
+        id: "potion_speed_150",
+        name: "Potion Speed Boost (150%)",
+        description: "+50% Brewing speed for 4 hours. Instant effect. Daily limit: 1",
+        price: 10,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          g.activeBoosts.add(ActiveBoost(
+            type: BoostType.potionSpeed150,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+          g.dailyPurchases["potion_speed_150"] = (g.dailyPurchases["potion_speed_150"] ?? 0) + 1;
+        },
+        icon: Icons.local_fire_department,
+        color: MagicColors.fire,
+        isDailyLimited: true,
+      ),
+      ShopItem(
+        id: "plant_speed_200",
+        name: "Plant Speed Boost (200%)",
+        description: "+100% Plant speed for 4 hours. Instant effect. Daily limit: 1",
+        price: 20,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          g.activeBoosts.add(ActiveBoost(
+            type: BoostType.plantSpeed200,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+          g.dailyPurchases["plant_speed_200"] = (g.dailyPurchases["plant_speed_200"] ?? 0) + 1;
+        },
+        icon: Icons.eco,
+        color: MagicColors.leaf,
+        isDailyLimited: true,
+      ),
+      ShopItem(
+        id: "potion_speed_200",
+        name: "Potion Speed Boost (200%)",
+        description: "+100% Brewing speed for 4 hours. Instant effect. Daily limit: 1",
+        price: 20,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) {
+          final now = DateTime.now().millisecondsSinceEpoch;
+          g.activeBoosts.add(ActiveBoost(
+            type: BoostType.potionSpeed200,
+            endTime: now + (4 * 60 * 60 * 1000),
+          ));
+          g.dailyPurchases["potion_speed_200"] = (g.dailyPurchases["potion_speed_200"] ?? 0) + 1;
+        },
+        icon: Icons.local_fire_department,
+        color: MagicColors.fire,
+        isDailyLimited: true,
+      ),
+    ];
+    
+    shopItems.addAll(boostItems);
+    
+    // Gold pouches (infinite purchases)
+    shopItems.addAll([
+      ShopItem(
+        id: "gold_pouch_small",
+        name: "Gold Pouch (Small)",
+        description: "+25,000 Gold instantly. Infinite purchases.",
+        price: 1,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) => g.gold += 25000,
+        icon: Icons.account_balance_wallet,
+        color: MagicColors.gold,
+      ),
+      ShopItem(
+        id: "gold_pouch_medium",
+        name: "Gold Pouch (Medium)",
+        description: "+175,000 Gold instantly. Infinite purchases.",
+        price: 5,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) => g.gold += 175000,
+        icon: Icons.account_balance_wallet,
+        color: MagicColors.gold,
+      ),
+      ShopItem(
+        id: "gold_pouch_big",
+        name: "Gold Pouch (Big)",
+        description: "+350,000 Gold instantly. Infinite purchases.",
+        price: 10,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) => g.gold += 350000,
+        icon: Icons.account_balance_wallet,
+        color: MagicColors.gold,
+      ),
+    ]);
+    
+    // Buyable plants (not wild seed/Sunleaf which is free)
+    final plantPrices = {
+      1: 5,   // Moonpetal
+      2: 10,  // Starroot
+      3: 25,  // Frost Fern
+      4: 60,  // Mint Crystal
+      5: 85,  // Ember Blossom
+      6: 120, // Phoenix Herb
+    };
+    
+    for (var entry in plantPrices.entries) {
+      final plantId = entry.key;
+      final price = entry.value;
+      shopItems.add(ShopItem(
+        id: "plant_$plantId",
+        name: plants[plantId].name,
+        description: "Get 1 ${plants[plantId].name} plant instantly. Infinite purchases.",
+        price: price,
+        currency: ShopCurrency.crystal,
+        onBuy: (g) => g.storage[plantId]++,
+        icon: Icons.spa,
+        color: plants[plantId].color,
+        plantId: plantId.toString(),
+      ));
+    }
+  }
+
+  List<String> buyShopItemWithPopup(ShopItem item) {
+    resetDaily
+
