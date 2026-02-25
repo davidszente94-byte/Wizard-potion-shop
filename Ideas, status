@@ -1,5 +1,5 @@
 02.24. improvement loop
-I want updates into the code. Check the current code and write the full code according to the instructions:
+You are an expert flutter dart developer and also an expert market analyst. I want updates into the code. Check the current code and write the full code according to the instructions:
 	1. introduction of congratulation window for each lvl up and extra writing what is the gift for this level and if a new recipe is unlocked. Gifts upon each level up is in a chart, I upload it.
 	2. Shop upgrade1: delete the instantbrewtokens and instantgrowtokens completely from the game
 	3. Shop upgrade2: upgrade the shop with the items exactly according to the same attached sheet under "SHOP ITEMs", considering their price and their wished effect
