@@ -1,3 +1,17 @@
+02.26.
+UI improvements:
+	- Flutter_animate - gombot remegtetni, pulzalni, lebegtetni
+	- Lottie - kész fantasy animációk letölthető bugyogó főzet stb
+basic plan:
+1. Use 9:21 ratio, so that it matches all devices, but all the buttons and important stuff are in the middle 70% concentrated. This way on taller screen they just see more from the "wall" of the building for example but even on smaller phone we do not lose buttons
+OR even better, since AI cannot make perfect picture, is to scissor it together:
+2. 1 background, then place table in a different pic, then place potion another diff. Pic but this is clickable; place recipe book (clickable - go to recipe book), make the door of the game clickable (go to garden)
+Separate XP loading bar, gold and crystal "widget" extra image to be put in
+
+
+
+
+
 02.24. improvement loop
 You are an expert flutter dart developer and also an expert market analyst. I want updates into the code. Check the current code and write the full code according to the instructions:
 	1. introduction of congratulation window for each lvl up and extra writing what is the gift for this level and if a new recipe is unlocked. Gifts upon each level up is in a chart, I upload it.
