@@ -5,12 +5,205 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 
+class TableConfig {
+  // Get screen size - call this in build method
+  static Size _screenSize = Size.zero;
+
+  static void init(BuildContext context) {
+    _screenSize = MediaQuery.of(context).size;
+  }
+
+  static double get screenWidth => _screenSize.width;
+  static double get screenHeight => _screenSize.height;
+
+  // Helper to convert percentage (0-100) to pixels
+  static double w(double percent) => screenWidth * (percent / 100);
+  static double h(double percent) => screenHeight * (percent / 100);
+
+  // TABLE 1 - Top Left (slots 0,1,2)
+  // Position: 10% from left, 35% from top
+  static double get table1Left => w(-3);
+  static double get table1Top => h(43);
+  static double get table1Width => w(52);
+  static double get table1Height => h(50);
+
+  // TABLE 2 - Top Right (slots 3,4,5)
+  static double get table2Left => w(38);
+  static double get table2Top => h(38);
+  static double get table2Width => w(52);
+  static double get table2Height => h(50);
+
+  // TABLE 3 - Bottom Left (slots 6,7)
+  static double get table3Left => w(-2);
+  static double get table3Top => h(59);
+  static double get table3Width => w(58);
+  static double get table3Height => h(52);
+
+  // TABLE 4 - Bottom Right (slots 8,9 + book)
+  static double get table4Left => w(45);
+  static double get table4Top => h(50);
+  static double get table4Width => w(60);
+  static double get table4Height => h(55);
+
+  // Potions scale with table size
+  static double get potionWidth => w(68);
+  static double get potionHeight => h(10);
+
+  // Book
+  static double get bookRight => w(2);
+  static double get bookTop => h(1);
+  static double get bookWidth => w(8);
+  static double get bookHeight => h(6);
+
+  // Buttons
+  static double get speedButtonTop => h(12);
+  static double get doorLeft => w(5);
+  static double get doorBottom => h(8);
+  static double get doorWidth => w(18);
+  static double get doorHeight => h(10);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
   runApp(const MyApp());
+}
+
+// ==========================================
+// RESPONSIVE POTION SYSTEM - 10 Individual Potions
+// ==========================================
+
+class PotionConfig {
+  static Size _screenSize = Size.zero;
+
+  static void init(BuildContext context) {
+    _screenSize = MediaQuery.of(context).size;
+  }
+
+  static double get screenWidth => _screenSize.width;
+  static double get screenHeight => _screenSize.height;
+  static double w(double percent) => screenWidth * (percent / 100);
+  static double h(double percent) => screenHeight * (percent / 100);
+
+  // TABLE CONFIGURATION
+  // Define tables by their screen percentage position and size
+  static final Map<String, Map<String, double>> tables = {
+    'table1': {
+      'left': 8,   // 8% from left of screen
+      'top': 32,   // 32% from top of screen
+      'width': 38, // 38% of screen width
+      'height': 15 // 15% of screen height
+    },
+    'table2': {
+      'left': 54,
+      'top': 32,
+      'width': 38,
+      'height': 15
+    },
+    'table3': {
+      'left': 12,
+      'top': 55,
+      'width': 35,
+      'height': 13
+    },
+    'table4': {
+      'left': 53,
+      'top': 55,
+      'width': 35,
+      'height': 13
+    },
+  };
+
+  // ==========================================
+  // POTION POSITIONS - PERCENTAGE OF TABLE
+  // Format: [left% of table width, top% of table height]
+  //
+  // 0 = left/top edge of table
+  // 50 = center of table
+  // 100 = right/bottom edge of table
+  // ==========================================
+
+  static final Map<int, List<double>> potionOffsets = {
+    // TABLE 1 (slots 0,1,2) - 3 potions spread across
+    0: [15.0, 20.0],   // 15% from table left, 20% from table top
+    1: [50.0, 20.0],   // Center horizontally, 20% from top
+    2: [85.0, 20.0],   // 85% from table left (near right edge)
+
+    // TABLE 2 (slots 3,4,5)
+    3: [15.0, 20.0],
+    4: [50.0, 20.0],
+    5: [85.0, 20.0],
+
+    // TABLE 3 (slots 6,7) - 2 potions, more spacing
+    6: [25.0, 25.0],
+    7: [75.0, 25.0],
+
+    // TABLE 4 (slots 8,9)
+    8: [25.0, 25.0],
+    9: [75.0, 25.0],
+  };
+
+  // Get which table a slot belongs to
+  static String getTableForSlot(int slotIndex) {
+    if (slotIndex < 3) return 'table1';
+    if (slotIndex < 6) return 'table2';
+    if (slotIndex < 8) return 'table3';
+    return 'table4';
+  }
+
+  // Get absolute screen position for a potion
+  static Offset getAbsolutePosition(int slotIndex) {
+    final tableName = getTableForSlot(slotIndex);
+    final table = tables[tableName]!;
+    final offset = potionOffsets[slotIndex] ?? [50.0, 50.0];
+
+    // Convert table percentages to pixels
+    final tableLeftPx = w(table['left']!);
+    final tableTopPx = h(table['top']!);
+    final tableWidthPx = w(table['width']!);
+    final tableHeightPx = h(table['height']!);
+
+    // Calculate potion position: table edge + (table size * percentage)
+    final potionLeft = tableLeftPx + (tableWidthPx * offset[0] / 100);
+    final potionTop = tableTopPx + (tableHeightPx * offset[1] / 100);
+
+    return Offset(potionLeft, potionTop);
+  }
+
+  // Get position RELATIVE to table (for use inside Positioned within table Stack)
+  static Offset getRelativePosition(int slotIndex) {
+    final tableName = getTableForSlot(slotIndex);
+    final table = tables[tableName]!;
+    final offset = potionOffsets[slotIndex] ?? [50.0, 50.0];
+
+    final tableWidthPx = w(table['width']!);
+    final tableHeightPx = h(table['height']!);
+
+    // Position relative to table's top-left corner
+    final relativeLeft = tableWidthPx * offset[0] / 100;
+    final relativeTop = tableHeightPx * offset[1] / 100;
+
+    return Offset(relativeLeft, relativeTop);
+  }
+
+  // Get potion size (relative to table or screen)
+  static double get potionWidth => w(60);
+  static double get potionHeight => h(8);
+
+  // Size relative to specific table
+  static double getPotionWidthForTable(int slotIndex) {
+    final tableName = getTableForSlot(slotIndex);
+    final table = tables[tableName]!;
+    return w(table['width']!) * 0.25; // 25% of table width
+  }
+
+  static double getPotionHeightForTable(int slotIndex) {
+    final tableName = getTableForSlot(slotIndex);
+    final table = tables[tableName]!;
+    return h(table['height']!) * 0.70; // 70% of table height
+  }
 }
 
 // ==========================================
@@ -1674,7 +1867,8 @@ class _MyAppState extends State<MyApp> {
 }
 
 // ALCHEMY LAB SCREEN - Fixed table positioning
-class AlchemyLabScreen extends StatelessWidget {
+// ALCHEMY LAB SCREEN - Fixed table positioning
+class AlchemyLabScreen extends StatefulWidget {
   final GameState game;
   final Function(int) onNavigate;
   final Function(List<String>)? onLevelUp;
@@ -1687,7 +1881,41 @@ class AlchemyLabScreen extends StatelessWidget {
   });
 
   @override
+  State<AlchemyLabScreen> createState() => _AlchemyLabScreenState();
+}
+
+class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
+  // Debugger state
+  bool _showDebugger = false;
+  int _selectedSlot = 0;
+
+  // Potion position offsets - PERCENTAGE OF TABLE (0-100)
+  // Format: [left%, top%]
+  // 0 = left/top edge of table, 100 = right/bottom edge
+  final Map<int, List<double>> _potionOffsets = {
+    // Table 1 (slots 0,1,2)
+    0: [14.0, 10.0],
+    1: [32.0, 5.0],
+    2: [50.0, 0.0],
+
+    // Table 2 (slots 3,4,5)
+    3: [14.0, 10.0],
+    4: [32.0, 5.0],
+    5: [50.0, 0.0],
+
+    // Table 3 (slots 6,7)
+    6: [19.0, 9.0],
+    7: [42.0, 2.0],
+
+    // Table 4 (slots 8,9)
+    8: [19.0, 9.0],
+    9: [42.0, 2.0],
+  };
+
+  @override
   Widget build(BuildContext context) {
+    TableConfig.init(context);
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1697,185 +1925,225 @@ class AlchemyLabScreen extends StatelessWidget {
           fit: BoxFit.cover,
         ),
 
-        // Content
-        SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 100), // Resource bar space
+        // Tables
+        _buildTable(context, 0, 3),
+        _buildTable(context, 3, 3),
+        _buildTable(context, 6, 2),
+        _buildTable(context, 8, 2, showBook: true),
 
-              // Speed upgrade button
-              if (game.brewSpeedLevel < 10)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showSpeedUpgradeDialog(context),
-                    icon: const Icon(Icons.local_fire_department, size: 18),
-                    label: Text('Upgrade Speed (Lvl ${game.brewSpeedLevel + 1})'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: MagicColors.fire.withOpacity(0.8),
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-
-              const Spacer(),
-
-              // Tables in center-bottom area
-              Padding(
-                padding: const EdgeInsets.only(bottom: 150),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Top row: 2 tables with 3 potions each
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildTable(context, 0, 3), // slots 0,1,2
-                        const SizedBox(width: 30),
-                        _buildTable(context, 3, 3), // slots 3,4,5
-                      ],
-                    ),
-                    const SizedBox(height: 30),
-                    // Bottom row: 2 tables with 2 potions each
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildTable(context, 6, 2), // slots 6,7
-                        const SizedBox(width: 30),
-                        _buildTable(context, 8, 2, showBook: true), // slots 8,9 + book
-                      ],
-                    ),
-                  ],
-                ),
+        // Speed upgrade button
+        if (widget.game.brewSpeedLevel < 10)
+          Positioned(
+            left: 16,
+            top: 100,
+            child: ElevatedButton.icon(
+              onPressed: () => _showSpeedUpgradeDialog(context),
+              icon: const Icon(Icons.speed, size: 18),
+              label: Text('Upgrade Brew (Lvl ${widget.game.brewSpeedLevel + 1})'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: MagicColors.fire.withOpacity(0.8),
+                foregroundColor: Colors.white,
+                side: const BorderSide(color: Colors.white70),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
-
-              const Spacer(),
-            ],
+            ),
           ),
-        ),
 
-        // Door to Garden - bottom left
+        // Door to Garden
         Positioned(
-          left: 20,
-          bottom: 100,
+          left: TableConfig.doorLeft,
+          bottom: TableConfig.doorBottom,
           child: GestureDetector(
-            onTap: () => onNavigate(1),
+            onTap: () => widget.onNavigate(1),
             child: Container(
-              width: 70,
-              height: 90,
+              width: TableConfig.doorWidth,
+              height: TableConfig.doorHeight,
               decoration: BoxDecoration(
-                color: Colors.brown.withOpacity(0.4),
-                borderRadius: BorderRadius.circular(35),
-                border: Border.all(color: Colors.brown.shade300, width: 3),
+                color: Colors.brown.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.brown.shade300, width: 2),
               ),
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.door_front_door_outlined, color: Colors.white70, size: 32),
-                  Text('To Garden', style: TextStyle(color: Colors.white, fontSize: 10)),
+                  Icon(Icons.door_front_door_outlined, color: Colors.white70, size: 24),
+                  Text(
+                    'To Garden',
+                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+
+        // Debug toggle button
+        Positioned(
+          right: 16,
+          top: 100,
+          child: FloatingActionButton.small(
+            onPressed: () => setState(() => _showDebugger = !_showDebugger),
+            backgroundColor: _showDebugger ? Colors.red : Colors.green,
+            child: Icon(_showDebugger ? Icons.close : Icons.tune),
+          ),
+        ),
+
+        // Debugger panel
+        if (_showDebugger) _buildPercentageDebugger(),
       ],
     );
   }
 
   Widget _buildTable(BuildContext context, int startSlot, int potionCount, {bool showBook = false}) {
-    return SizedBox(
-      width: 350,
-      height: 120,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Table image
-          Positioned(
-            bottom: 0,
-            child: Image.asset(
-              'assets/images/table_wooden.png',
-              width: 220,
-              height: 120,
-              fit: BoxFit.contain,
-            ),
-          ),
+    late final double left, top, width, height;
 
-          // Potions on table
-          Positioned(
-            top: 0,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(potionCount, (index) {
-                final slotIndex = startSlot + index;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _buildPotionSlot(context, slotIndex),
-                );
-              }),
-            ),
-          ),
+    switch (startSlot) {
+      case 0:
+        left = TableConfig.table1Left;
+        top = TableConfig.table1Top;
+        width = TableConfig.table1Width;
+        height = TableConfig.table1Height;
+        break;
+      case 3:
+        left = TableConfig.table2Left;
+        top = TableConfig.table2Top;
+        width = TableConfig.table2Width;
+        height = TableConfig.table2Height;
+        break;
+      case 6:
+        left = TableConfig.table3Left;
+        top = TableConfig.table3Top;
+        width = TableConfig.table3Width;
+        height = TableConfig.table3Height;
+        break;
+      case 8:
+        left = TableConfig.table4Left;
+        top = TableConfig.table4Top;
+        width = TableConfig.table4Width;
+        height = TableConfig.table4Height;
+        break;
+      default:
+        left = 0;
+        top = 0;
+        width = 100;
+        height = 100;
+    }
 
-          // Recipe book on right side of table
-          if (showBook)
+    return Positioned(
+      left: left,
+      top: top,
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
             Positioned(
-              right: 10,
-              top: 10,
-              child: GestureDetector(
-                onTap: () => onNavigate(3),
-                child: Container(
-                  width: 35,
-                  height: 45,
-                  decoration: BoxDecoration(
-                    image: const DecorationImage(
-                      image: AssetImage('assets/images/book_closed.png'),
-                      fit: BoxFit.contain,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: MagicColors.gold.withOpacity(0.5),
-                        blurRadius: 10,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Image.asset(
+                'assets/images/table_wooden.png',
+                width: width,
+                height: height * 0.8,
+                fit: BoxFit.fill,
+              ),
+            ),
+
+            ...List.generate(potionCount, (index) {
+              final slotIndex = startSlot + index;
+              return _buildPotion(context, slotIndex, width, height);
+            }),
+
+            if (showBook)
+              Positioned(
+                right: width * 0.05,
+                top: height * 0.05,
+                child: GestureDetector(
+                  onTap: () => widget.onNavigate(3),
+                  child: Container(
+                    width: width * 0.15,
+                    height: height * 0.4,
+                    decoration: const BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage('assets/images/book_closed.png'),
+                        fit: BoxFit.contain,
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPotionSlot(BuildContext context, int index) {
-    const double width = 45;
-    const double height = 65;
+  Widget _buildPotion(BuildContext context, int index, double tableWidth, double tableHeight) {
+    final offsets = _potionOffsets[index] ?? [50.0, 50.0];
+    final left = tableWidth * (offsets[0] / 100);
+    final top = tableHeight * (offsets[1] / 100);
+    final width = tableWidth * 0.4;
+    final height = tableHeight * 0.70;
 
-    if (index >= game.unlockedBrewSlots) {
-      final costs = game.getBrewSlotUnlockCost(index);
+    if (index >= widget.game.unlockedBrewSlots) {
+      final costs = widget.game.getBrewSlotUnlockCost(index);
       final goldCost = costs["gold"] ?? 0;
       final crystalCost = costs["crystal"] ?? 0;
-      final canAfford = game.gold >= (goldCost > 0 ? goldCost : crystalCost);
+      final canAfford = (widget.game.gold >= goldCost && goldCost > 0) ||
+          (widget.game.crystals >= crystalCost && crystalCost > 0);
 
-      return GestureDetector(
-        onTap: () => _showUnlockSlotDialog(context, index, goldCost, crystalCost),
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: canAfford ? MagicColors.crystal.withOpacity(0.8) : Colors.grey,
-              width: 1,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+      return Positioned(
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        child: GestureDetector(
+          onTap: () => _showUnlockSlotDialog(context, index, goldCost, crystalCost),
+          child: Stack(
+            alignment: Alignment.center,
             children: [
-              const Icon(Icons.lock, color: Colors.white54, size: 16),
-              Text(
-                goldCost > 0 ? '${goldCost}g' : '$crystalCost💎',
-                style: TextStyle(color: canAfford ? MagicColors.gold : Colors.grey, fontSize: 8),
-                textAlign: TextAlign.center,
+              ColorFiltered(
+                colorFilter: const ColorFilter.matrix([
+                  0.1, 0, 0, 0, 0,
+                  0, 0.1, 0, 0, 0,
+                  0, 0, 0.1, 0, 0,
+                  0, 0, 0, 1, 0,
+                ]),
+                child: Image.asset(
+                  'assets/images/potion.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.all(width * 0.1),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.lock,
+                  color: canAfford ? MagicColors.crystal : Colors.grey,
+                  size: width * 0.3,
+                ),
+              ),
+              Positioned(
+                bottom: 0,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: width * 0.1, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    goldCost > 0 ? '$goldCost🪙' : '$crystalCost💎',
+                    style: TextStyle(
+                      color: canAfford ? MagicColors.gold : Colors.grey,
+                      fontSize: width * 0.15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1883,73 +2151,104 @@ class AlchemyLabScreen extends StatelessWidget {
       );
     }
 
-    final slot = game.brewSlots[index];
+    final slot = widget.game.brewSlots[index];
+
     if (slot == null) {
-      return GestureDetector(
-        onTap: () => _showPotionSelection(context, index),
-        child: Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: MagicColors.crystal.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: MagicColors.crystal.withOpacity(0.6)),
+      return Positioned(
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        child: GestureDetector(
+          onTap: () => _showPotionSelection(context, index),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.asset(
+                'assets/images/potion.png',
+                fit: BoxFit.contain,
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.add, color: Colors.white, size: width * 0.4),
+              ),
+            ],
           ),
-          child: const Icon(Icons.add, color: Colors.white70),
         ),
       );
     }
 
     final recipe = getRecipeByKey(slot.recipeKey);
-    if (recipe == null) return const SizedBox.shrink();
-    final progress = game.getBrewSlotProgress(index);
+    if (recipe == null) return SizedBox(width: width, height: height);
 
-    return GestureDetector(
-      onTap: () => _showBrewStats(context, index),
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              rarityColor(recipe.rarity).withOpacity(0.6),
-              rarityColor(recipe.rarity).withOpacity(0.2),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: rarityColor(recipe.rarity)),
-        ),
+    final progress = widget.game.getBrewSlotProgress(index);
+
+    return Positioned(
+      left: left,
+      top: top,
+      width: width,
+      height: height,
+      child: GestureDetector(
+        onTap: () => _showBrewStats(context, index),
         child: Stack(
+          alignment: Alignment.center,
           children: [
+            Image.asset(
+              'assets/images/potion.png',
+              fit: BoxFit.contain,
+            ),
             ClipRRect(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(width * 0.3),
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: Container(
-                  height: height * progress,
-                  color: Colors.white.withOpacity(0.2),
+                  width: width * 0.7,
+                  height: height * 0.6 * progress,
+                  margin: EdgeInsets.only(bottom: height * 0.15),
+                  decoration: BoxDecoration(
+                    color: rarityColor(recipe.rarity).withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(width * 0.2),
+                  ),
                 ),
               ),
             ),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(recipe.icon, style: const TextStyle(fontSize: 20)),
-                  if (progress < 1)
-                    Text(game.getBrewSlotTimeLeft(index), style: const TextStyle(color: Colors.white70, fontSize: 7)),
-                ],
-              ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  recipe.icon,
+                  style: TextStyle(
+                    fontSize: width * 0.4,
+                    shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
+                  ),
+                ),
+                if (progress < 1)
+                  Text(
+                    widget.game.getBrewSlotTimeLeft(index),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: width * 0.16,
+                      fontWeight: FontWeight.bold,
+                      shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
+                    ),
+                  ),
+              ],
             ),
             Positioned(
-              right: 2,
-              top: 2,
+              right: 0,
+              top: 0,
               child: GestureDetector(
-                onTap: () => game.stopIdleBrew(index),
+                onTap: () => widget.game.stopIdleBrew(index),
                 child: Container(
-                  padding: const EdgeInsets.all(1),
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                  child: const Icon(Icons.close, color: Colors.white, size: 8),
+                  padding: EdgeInsets.all(width * 0.05),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.close, color: Colors.white, size: width * 0.15),
                 ),
               ),
             ),
@@ -1959,8 +2258,141 @@ class AlchemyLabScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildPercentageDebugger() {
+    final offsets = _potionOffsets[_selectedSlot]!;
+
+    return Positioned(
+      right: 16,
+      top: 160,
+      width: 280,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '🔧 % Position Tuner',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy, color: Colors.green),
+                  onPressed: () {
+                    final code = _potionOffsets.entries
+                        .map((e) => '    ${e.key}: [${e.value[0].toStringAsFixed(1)}, ${e.value[1].toStringAsFixed(1)}],')
+                        .join('\n');
+                    Clipboard.setData(ClipboardData(text: 'final Map<int, List<double>> _potionOffsets = {\n$code\n  };'));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Copied to clipboard!')),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const Divider(color: Colors.white24),
+            Wrap(
+              spacing: 8,
+              children: List.generate(10, (i) {
+                return ChoiceChip(
+                  label: Text('$i'),
+                  selected: _selectedSlot == i,
+                  onSelected: (_) => setState(() => _selectedSlot = i),
+                  selectedColor: Colors.blue,
+                );
+              }),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Slot $_selectedSlot', style: const TextStyle(color: Colors.white70)),
+                  Text(
+                    'Left: ${offsets[0].toStringAsFixed(1)}% of table\n'
+                        'Top: ${offsets[1].toStringAsFixed(1)}% of table',
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Horizontal (% of table width)', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            Slider(
+              value: offsets[0],
+              min: 0,
+              max: 100,
+              divisions: 100,
+              activeColor: Colors.blue,
+              label: '${offsets[0].toStringAsFixed(0)}%',
+              onChanged: (v) => setState(() => _potionOffsets[_selectedSlot]![0] = v),
+            ),
+            Text('Vertical (% of table height)', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            Slider(
+              value: offsets[1],
+              min: 0,
+              max: 100,
+              divisions: 100,
+              activeColor: Colors.orange,
+              label: '${offsets[1].toStringAsFixed(0)}%',
+              onChanged: (v) => setState(() => _potionOffsets[_selectedSlot]![1] = v),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildPresetButton('Left', 10, offsets[1]),
+                _buildPresetButton('Center', 50, offsets[1]),
+                _buildPresetButton('Right', 90, offsets[1]),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildPresetButton('Top', offsets[0], 10),
+                _buildPresetButton('Mid', offsets[0], 50),
+                _buildPresetButton('Bot', offsets[0], 90),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPresetButton(String label, double left, double top) {
+    return TextButton(
+      onPressed: () => setState(() {
+        _potionOffsets[_selectedSlot]![0] = left;
+        _potionOffsets[_selectedSlot]![1] = top;
+      }),
+      style: TextButton.styleFrom(
+        backgroundColor: Colors.white.withOpacity(0.1),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 11)),
+    );
+  }
+
   void _showSpeedUpgradeDialog(BuildContext context) {
-    final cost = game.getNextBrewSpeedCost();
+    final cost = widget.game.getNextBrewSpeedCost();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1969,13 +2401,13 @@ class AlchemyLabScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Current: Level ${game.brewSpeedLevel}', style: const TextStyle(color: MagicColors.textLight)),
-            Text('Next: Level ${game.brewSpeedLevel + 1}', style: const TextStyle(color: MagicColors.textLight)),
+            Text('Current: Level ${widget.game.brewSpeedLevel}', style: const TextStyle(color: MagicColors.textLight)),
+            Text('Next: Level ${widget.game.brewSpeedLevel + 1}', style: const TextStyle(color: MagicColors.textLight)),
             const SizedBox(height: 16),
             Text(
               'Cost: $cost Gold',
               style: TextStyle(
-                color: game.gold >= cost ? MagicColors.gold : Colors.red,
+                color: widget.game.gold >= cost ? MagicColors.gold : Colors.red,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -1985,8 +2417,8 @@ class AlchemyLabScreen extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: game.gold >= cost ? () {
-              game.upgradeBrewSpeed();
+            onPressed: widget.game.gold >= cost ? () {
+              widget.game.upgradeBrewSpeed();
               Navigator.pop(ctx);
             } : null,
             child: const Text('Upgrade'),
@@ -2011,10 +2443,10 @@ class AlchemyLabScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.monetization_on, color: MagicColors.gold),
                 title: Text('$goldCost Gold', style: const TextStyle(color: MagicColors.textLight)),
-                trailing: game.gold >= goldCost
+                trailing: widget.game.gold >= goldCost
                     ? ElevatedButton(
                   onPressed: () {
-                    game.unlockBrewSlotWithGold();
+                    widget.game.unlockBrewSlotWithGold();
                     Navigator.pop(ctx);
                   },
                   child: const Text('Buy'),
@@ -2025,10 +2457,10 @@ class AlchemyLabScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.diamond, color: MagicColors.crystal),
                 title: Text('$crystalCost Crystals', style: const TextStyle(color: MagicColors.textLight)),
-                trailing: game.crystals >= crystalCost
+                trailing: widget.game.crystals >= crystalCost
                     ? ElevatedButton(
                   onPressed: () {
-                    game.unlockBrewSlotWithCrystals();
+                    widget.game.unlockBrewSlotWithCrystals();
                     Navigator.pop(ctx);
                   },
                   child: const Text('Buy'),
@@ -2045,7 +2477,7 @@ class AlchemyLabScreen extends StatelessWidget {
   }
 
   void _showPotionSelection(BuildContext context, int slotIndex) {
-    final unlockedRecipes = allRecipes.where((r) => game.isRecipeUnlocked(r.key)).toList();
+    final unlockedRecipes = allRecipes.where((r) => widget.game.isRecipeUnlocked(r.key)).toList();
 
     showDialog(
       context: context,
@@ -2059,8 +2491,8 @@ class AlchemyLabScreen extends StatelessWidget {
             itemCount: unlockedRecipes.length,
             itemBuilder: (context, index) {
               final recipe = unlockedRecipes[index];
-              final brewTime = game.getBrewTime(recipe);
-              bool hasMaterials = game.storage[recipe.plantTier] >= 3;
+              final brewTime = widget.game.getBrewTime(recipe);
+              final hasMaterials = widget.game.storage[recipe.plantTier] >= 3;
 
               return ListTile(
                 leading: Text(recipe.icon, style: const TextStyle(fontSize: 28)),
@@ -2099,7 +2531,7 @@ class AlchemyLabScreen extends StatelessWidget {
                   ),
                 ),
                 onTap: hasMaterials ? () {
-                  game.startIdleBrew(slotIndex, recipe.key);
+                  widget.game.startIdleBrew(slotIndex, recipe.key);
                   Navigator.pop(ctx);
                 } : null,
               );
@@ -2111,11 +2543,11 @@ class AlchemyLabScreen extends StatelessWidget {
   }
 
   void _showBrewStats(BuildContext context, int index) {
-    final slot = game.brewSlots[index];
+    final slot = widget.game.brewSlots[index];
     if (slot == null) return;
     final recipe = getRecipeByKey(slot.recipeKey);
     if (recipe == null) return;
-    final goldPerHour = game.getBrewGoldPerHour(index);
+    final goldPerHour = widget.game.getBrewGoldPerHour(index);
 
     showDialog(
       context: context,
@@ -2159,7 +2591,6 @@ class AlchemyLabScreen extends StatelessWidget {
     return n.toString();
   }
 }
-
 // GARDEN SCREEN - Fixed positioning
 class GardenScreen extends StatelessWidget {
   final GameState game;
