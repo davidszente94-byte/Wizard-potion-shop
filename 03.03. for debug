@@ -1535,7 +1535,7 @@ class _MyAppState extends State<MyApp> {
       game.startTicker();
       final now = DateTime.now();
       final currentDay = now.year * 10000 + now.month * 100 + now.day;
-      if (game.lastLoginDay == currentDay && getDailyLoginReward(game.level) > 0) {
+      if (game.lastLoginDay != currentDay) {
         setState(() {
           dailyRewardAmount = getDailyLoginReward(game.level);
           showDailyReward = true;
@@ -1594,7 +1594,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: Colors.transparent,
-        cardTheme: CardThemeData(
+        cardTheme: const CardThemeData(
           color: MagicColors.surface.withOpacity(0.8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 8,
@@ -2000,7 +2000,7 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
   }
 
   Widget _buildTable(BuildContext context, int startSlot, int potionCount, {bool showBook = false}) {
-    late final double left, top, width, height;
+    double? left, top, width, height;
 
     switch (startSlot) {
       case 0:
@@ -2096,13 +2096,13 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
     final width = tableWidth * 0.4;
     final height = tableHeight * 0.70;
 
-    final hitSize = Size(visualWidth * 0.4, visualHeight * 0.4);
+    final hitSize = Size(Width * 0.4, Height * 0.4);
     return Positioned(
       left: left,
       top: top,
       child: SizedBox(
-        width: visualWidth,
-        height: visualHeight,
+        width: Width,
+        height: Height,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -2121,7 +2121,12 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
             // Overlay for locked state
             if (index >= widget.game.unlockedBrewSlots)
               ColorFiltered(
-                colorFilter: const ColorFilter.matrix([...]),
+                colorFilter: const ColorFilter.matrix([
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0.2126, 0.7152, 0.0722, 0, 0,
+                  0,      0,      0,      1, 0,
+                ]),
                 child: Image.asset(
                   'assets/images/potion.png',
                   width: visualWidth,
@@ -2159,7 +2164,7 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
         ),
       ),
     );
-  }
+
     // LOCKED SLOTS: Any locked slot clicked unlocks the NEXT slot in sequence
     if (index >= widget.game.unlockedBrewSlots) {
 
