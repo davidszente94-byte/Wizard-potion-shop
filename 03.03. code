@@ -1337,6 +1337,11 @@ class GameState extends ChangeNotifier {
     consecutiveLogins = prefs.getInt("consecutiveLogins") ?? 0;
     lastShopResetDay = prefs.getInt("lastShopResetDay") ?? 0;
 
+    if (unlockedBrewSlots < 1) {
+      unlockedBrewSlots = 1;
+      await prefs.setInt("unlockedBrewSlots", 1);
+    }
+
     final boostsJson = prefs.getString("activeBoosts");
     if (boostsJson != null) {
       try {
@@ -2080,6 +2085,10 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
   }
 
   Widget _buildPotion(BuildContext context, int index, double tableWidth, double tableHeight) {
+    if (widget.game.unlockedBrewSlots < 1) {
+      // Force minimum 1 unlocked slot
+      widget.game.unlockedBrewSlots = 1;
+    }
     final offsets = _potionOffsets[index] ?? [50.0, 50.0];
     final left = tableWidth * (offsets[0] / 100);
     final top = tableHeight * (offsets[1] / 100);
