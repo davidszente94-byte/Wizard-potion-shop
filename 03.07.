@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +34,7 @@ class LabLayoutConfig {
 
   // Table 1 - Left side, bottom area (fireplace mantel area)
   static const Map<String, double> table1 = {
-    'left': 0.01,           // % from left
+    'left': -0.01,           // % from left
     'bottom': 0.14,         // % from bottom (sits on floor)
     'width': 0.55,          // % of screen width
     // Height will be calculated from width to maintain aspect ratio
@@ -2180,6 +2181,17 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
     final top = tableHeight * bookOffset[1];
     final size = tableWidth * LabLayoutConfig.bookWidthPercent;  // Square book
 
+    final bookWidget = Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/book_closed.png'),
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+
     return Positioned(
       left: left - (size / 2),
       top: top,
@@ -2187,17 +2199,7 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
       height: size,
       child: GestureDetector(
         onTap: () => widget.onNavigate(3),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/images/book_closed.png'),
-              fit: BoxFit.contain,
-            ),
-          ),
-          child: const _PulsatingGlow(),
-        ),
+        child: PulsatingGlow(child: bookWidget),  // <-- Pass the book widget as child
       ),
     );
   }
@@ -2778,7 +2780,7 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
 }
 
 // ==========================================
-// GARDEN SCREEN - Fully Responsive with Image Slots
+// GARDEN SCREEN - Fully Responsive with Image Slots (Potion-Style)
 // ==========================================
 
 class GardenScreen extends StatefulWidget {
@@ -2833,7 +2835,7 @@ class _GardenScreenState extends State<GardenScreen> {
             if (widget.game.growSpeedLevel < 10)
               _buildSpeedButton(constraints),
 
-            // Garden slots - now as separate clickable images like potions
+            // Garden slots - clickable images like potions (NO visible buttons)
             ...List.generate(10, (index) => _buildGardenSlot(constraints, index)),
 
             // Door to Lab
@@ -2875,7 +2877,7 @@ class _GardenScreenState extends State<GardenScreen> {
     );
   }
 
-  /// Builds a garden slot using the same approach as potions - clickable image without visible button
+  /// Builds a garden slot EXACTLY like potions - image only, fully transparent clickable area
   Widget _buildGardenSlot(BoxConstraints constraints, int index) {
     final maxWidth = constraints.maxWidth;
     final maxHeight = constraints.maxHeight;
@@ -2883,14 +2885,14 @@ class _GardenScreenState extends State<GardenScreen> {
     final pos = _slotPositions[index]!;
     final left = maxWidth * pos[0];
     final top = maxHeight * pos[1];
-    // INCREASED SIZE - was 0.12, now 0.18 to make slots more visible
-    final size = maxWidth * 0.18;
+    // Image size - the visual size of the gardenslot.png
+    final imageSize = maxWidth * 0.25;
 
     // Center the slot on the position point
-    final centeredLeft = left - (size / 2);
-    final centeredTop = top - (size / 2);
+    final centeredLeft = left - (imageSize / 2);
+    final centeredTop = top - (imageSize / 2);
 
-    // LOCKED SLOT - Show darkened gardenslot.png with lock overlay
+    // LOCKED SLOT - Darkened image with lock icon, fully clickable
     if (index >= widget.game.unlockedSlots) {
       final costs = widget.game.getGardenSlotUnlockCost(index);
       final goldCost = costs["gold"] ?? 0;
@@ -2902,91 +2904,78 @@ class _GardenScreenState extends State<GardenScreen> {
       return Positioned(
         left: centeredLeft,
         top: centeredTop,
-        width: size,
-        height: size,
+        width: imageSize,
+        height: imageSize,
         child: GestureDetector(
           onTap: () => _showUnlockSlotDialog(context, index, goldCost, crystalCost),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Gardenslot image with dark overlay for locked state
-              Opacity(
-                opacity: 0.4,
+              // Darkened gardenslot image (like locked potion)
+              ColorFiltered(
+                colorFilter: const ColorFilter.matrix([
+                  0.3, 0, 0, 0, 0,
+                  0, 0.3, 0, 0, 0,
+                  0, 0, 0.3, 0, 0,
+                  0, 0, 0, 1, 0,
+                ]),
                 child: Image.asset(
                   'assets/images/gardenslot.png',
-                  width: size,
-                  height: size,
+                  width: imageSize,
+                  height: imageSize,
                   fit: BoxFit.contain,
-                  // Add error builder to debug image loading issues
-                  errorBuilder: (context, error, stackTrace) {
-                    print('Error loading gardenslot.png: $error');
-                    return Container(
-                      width: size,
-                      height: size,
-                      decoration: BoxDecoration(
-                        color: Colors.brown.withOpacity(0.5),
-                        shape: BoxShape.circle,
-                      ),
-                    );
-                  },
                 ),
               ),
-              // Lock overlay with cost info
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  shape: BoxShape.circle,
-                ),
-                padding: EdgeInsets.all(size * 0.15),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock,
-                      color: (canAffordGold || canAffordCrystal || isFree)
-                          ? MagicColors.crystal
-                          : Colors.grey,
-                      size: size * 0.25,
-                    ),
-                    const SizedBox(height: 2),
-                    if (isFree)
+              // Lock icon and cost - small overlay in center, NOT a button
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.lock,
+                    color: (canAffordGold || canAffordCrystal || isFree)
+                        ? Colors.white70
+                        : Colors.grey,
+                    size: imageSize * 0.25,
+                  ),
+                  SizedBox(height: imageSize * 0.02),
+                  if (isFree)
+                    Text(
+                      'FREE',
+                      style: TextStyle(
+                        color: MagicColors.leaf,
+                        fontSize: imageSize * 0.10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  else ...[
+                    if (goldCost > 0)
                       Text(
-                        'FREE',
+                        '$goldCost',
                         style: TextStyle(
-                          color: MagicColors.leaf,
-                          fontSize: size * 0.12,
+                          color: canAffordGold ? MagicColors.gold : Colors.grey,
+                          fontSize: imageSize * 0.09,
                           fontWeight: FontWeight.bold,
                         ),
-                      )
-                    else ...[
-                      if (goldCost > 0)
-                        Text(
-                          '$goldCost',
-                          style: TextStyle(
-                            color: canAffordGold ? MagicColors.gold : Colors.grey,
-                            fontSize: size * 0.11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      if (crystalCost > 0)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '$crystalCost',
-                              style: TextStyle(
-                                color: canAffordCrystal ? MagicColors.crystal : Colors.grey,
-                                fontSize: size * 0.11,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      ),
+                    if (crystalCost > 0)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$crystalCost',
+                            style: TextStyle(
+                              color: canAffordCrystal ? MagicColors.crystal : Colors.grey,
+                              fontSize: imageSize * 0.09,
+                              fontWeight: FontWeight.bold,
                             ),
-                            Icon(Icons.diamond, color: MagicColors.crystal, size: size * 0.1),
-                          ],
-                        ),
-                    ],
+                          ),
+                          SizedBox(width: imageSize * 0.01),
+                          Icon(Icons.diamond, color: MagicColors.crystal, size: imageSize * 0.08),
+                        ],
+                      ),
                   ],
-                ),
+                ],
               ),
             ],
           ),
@@ -2994,49 +2983,33 @@ class _GardenScreenState extends State<GardenScreen> {
       );
     }
 
-    // EMPTY SLOT - Show gardenslot.png with add icon
+    // EMPTY SLOT - Just the gardenslot image with subtle add hint, fully clickable
     final slot = widget.game.gardenSlots[index];
     if (slot == null) {
       return Positioned(
         left: centeredLeft,
         top: centeredTop,
-        width: size,
-        height: size,
+        width: imageSize,
+        height: imageSize,
         child: GestureDetector(
           onTap: () => _showSeedSelection(context, index),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Gardenslot base image
+              // Gardenslot base image only
               Image.asset(
                 'assets/images/gardenslot.png',
-                width: size,
-                height: size,
+                width: imageSize,
+                height: imageSize,
                 fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  print('Error loading gardenslot.png: $error');
-                  return Container(
-                    width: size,
-                    height: size,
-                    decoration: BoxDecoration(
-                      color: Colors.brown,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.brown.shade700, width: 3),
-                    ),
-                  );
-                },
               ),
-              // Add icon overlay
-              Container(
-                decoration: BoxDecoration(
-                  color: MagicColors.leaf.withOpacity(0.4),
-                  shape: BoxShape.circle,
-                ),
-                padding: EdgeInsets.all(size * 0.2),
+              // Subtle add indicator (small, not a button) - like empty potion hint
+              Opacity(
+                opacity: 0.6,
                 child: Icon(
                   Icons.add,
                   color: Colors.white,
-                  size: size * 0.3,
+                  size: imageSize * 0.25,
                 ),
               ),
             ],
@@ -3045,121 +3018,123 @@ class _GardenScreenState extends State<GardenScreen> {
       );
     }
 
-    // ACTIVE SLOT - Show gardenslot.png with plant growing
-    return _buildActiveSlot(context, index, slot, centeredLeft, centeredTop, size);
+    // ACTIVE SLOT - Gardenslot image with plant, fully clickable like active potion
+    return _buildActiveSlot(context, index, slot, centeredLeft, centeredTop, imageSize);
   }
 
-  /// Builds an active garden slot with plant growing inside
-  Widget _buildActiveSlot(BuildContext context, int index, IdleGardenSlot slot, double left, double top, double size) {
+  /// Builds an active garden slot - like an active potion with brewing liquid
+  Widget _buildActiveSlot(BuildContext context, int index, IdleGardenSlot slot, double left, double top, double imageSize) {
     final seed = seeds[slot.seedId];
     final progress = widget.game.getGardenSlotProgress(index);
 
     return Positioned(
       left: left,
       top: top,
-      width: size,
-      height: size,
+      width: imageSize,
+      height: imageSize,
       child: GestureDetector(
         onTap: () => _showSlotStats(context, index),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Gardenslot base image
+            // Gardenslot base image (like potion bottle)
             Image.asset(
               'assets/images/gardenslot.png',
-              width: size,
-              height: size,
+              width: imageSize,
+              height: imageSize,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                print('Error loading gardenslot.png: $error');
-                return Container(
-                  width: size,
-                  height: size,
-                  decoration: BoxDecoration(
-                    color: Colors.brown,
-                    shape: BoxShape.circle,
-                  ),
-                );
-              },
             ),
-            // Plant content overlay
-            Container(
-              width: size * 0.75,
-              height: size * 0.75,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    seed.color.withOpacity(0.9),
-                    seed.color.withOpacity(0.4),
-                  ],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Progress ring
-                  SizedBox(
-                    width: size * 0.65,
-                    height: size * 0.65,
-                    child: CircularProgressIndicator(
-                      value: progress,
-                      strokeWidth: 4,
-                      backgroundColor: Colors.white24,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
-                    ),
+
+            // Plant/progress overlay - like potion liquid fill
+            // Positioned in the "soil" area of the gardenslot
+            Positioned(
+              top: imageSize * 0.25, // Start lower in the slot (soil area)
+              child: Container(
+                width: imageSize * 0.6,
+                height: imageSize * 0.5,
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [
+                      seed.color.withOpacity(0.9),
+                      seed.color.withOpacity(0.4),
+                    ],
                   ),
-                  // Plant icon and timer
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        seed.icon,
-                        style: TextStyle(
-                          fontSize: size * 0.35,
-                          shadows: const [
-                            Shadow(color: Colors.black, blurRadius: 3),
-                          ],
-                        ),
+                  shape: BoxShape.circle,
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Progress ring around plant
+                    SizedBox(
+                      width: imageSize * 0.55,
+                      height: imageSize * 0.55,
+                      child: CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 3,
+                        backgroundColor: Colors.white24,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
                       ),
-                      if (progress < 1)
+                    ),
+                    // Plant icon
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          widget.game.getGardenSlotTimeLeft(index),
+                          seed.icon,
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: size * 0.13,
-                            fontWeight: FontWeight.bold,
+                            fontSize: imageSize * 0.30,
                             shadows: const [
                               Shadow(color: Colors.black, blurRadius: 2),
                             ],
                           ),
                         ),
-                    ],
-                  ),
-                ],
+                        if (progress < 1)
+                          Text(
+                            widget.game.getGardenSlotTimeLeft(index),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: imageSize * 0.10,
+                              fontWeight: FontWeight.bold,
+                              shadows: const [
+                                Shadow(color: Colors.black, blurRadius: 2),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-            // Close button (top right)
+
+            // Close button - small X in corner (like potion close button)
             Positioned(
-              right: size * 0.05,
-              top: size * 0.05,
+              right: imageSize * 0.05,
+              top: imageSize * 0.05,
               child: GestureDetector(
                 onTap: () => widget.game.stopIdleGarden(index),
                 child: Container(
-                  padding: EdgeInsets.all(size * 0.06),
+                  width: imageSize * 0.22,
+                  height: imageSize * 0.22,
                   decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black26,
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
+                        blurRadius: 2,
+                        offset: Offset(0, 1),
                       ),
                     ],
                   ),
-                  child: Icon(Icons.close, color: Colors.white, size: size * 0.12),
+                  child: Center(
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: imageSize * 0.14,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -3223,23 +3198,23 @@ class _GardenScreenState extends State<GardenScreen> {
   Widget _buildDebugOverlay(BoxConstraints constraints) {
     final maxWidth = constraints.maxWidth;
     final maxHeight = constraints.maxHeight;
-    final size = maxWidth * 0.18; // Match the new size
+    final imageSize = maxWidth * 0.18;
 
     return Stack(
       children: List.generate(10, (index) {
         final pos = _slotPositions[index]!;
-        final left = maxWidth * pos[0] - (size / 2);
-        final top = maxHeight * pos[1] - (size / 2);
+        final left = maxWidth * pos[0] - (imageSize / 2);
+        final top = maxHeight * pos[1] - (imageSize / 2);
 
         return Positioned(
           left: left,
           top: top,
-          width: size,
-          height: size,
+          width: imageSize,
+          height: imageSize,
           child: Container(
             decoration: BoxDecoration(
               border: Border.all(color: Colors.red, width: 2),
-              color: Colors.red.withOpacity(0.2),
+              color: Colors.red.withOpacity(0.1),
             ),
             child: Center(
               child: Text(
@@ -3561,6 +3536,7 @@ class _GardenScreenState extends State<GardenScreen> {
     );
   }
 }
+
 
 
 // ==========================================
@@ -4069,14 +4045,17 @@ Color rarityColor(Rarity r) {
   }
 }
 
-class _PulsatingGlow extends StatefulWidget {
-  const _PulsatingGlow();
+
+class PulsatingGlow extends StatefulWidget {
+  final Widget child;
+
+  const PulsatingGlow({super.key, required this.child});
 
   @override
-  State<_PulsatingGlow> createState() => _PulsatingGlowState();
+  _PulsatingGlowState createState() => _PulsatingGlowState();
 }
 
-class _PulsatingGlowState extends State<_PulsatingGlow> with SingleTickerProviderStateMixin {
+class _PulsatingGlowState extends State<PulsatingGlow> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -4088,7 +4067,7 @@ class _PulsatingGlowState extends State<_PulsatingGlow> with SingleTickerProvide
       vsync: this,
     )..repeat(reverse: true);
 
-    _animation = Tween<double>(begin: 0.3, end: 0.8).animate(
+    _animation = Tween<double>(begin: 2.0, end: 12.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
   }
@@ -4104,26 +4083,26 @@ class _PulsatingGlowState extends State<_PulsatingGlow> with SingleTickerProvide
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        return SizedBox(
-          width: 1,
-          height: 1,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.yellow.withOpacity(_animation.value),
-                  blurRadius: 15,
-                  spreadRadius: 3,
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Glow layer - blurred and colored, masked by the child's alpha
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Colors.yellow, Colors.yellow],
+              ).createShader(bounds),
+              blendMode: BlendMode.srcATop, // Only applies to existing pixels
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(
+                  sigmaX: _animation.value,
+                  sigmaY: _animation.value,
                 ),
-                BoxShadow(
-                  color: Colors.amber.withOpacity(_animation.value * 0.5),
-                  blurRadius: 15,
-                  spreadRadius: 8,
-                ),
-              ],
+                child: widget.child,
+              ),
             ),
-          ),
+            // Original image on top (sharp)
+            widget.child,
+          ],
         );
       },
     );
