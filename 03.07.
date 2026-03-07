@@ -143,22 +143,21 @@ class GardenLayoutConfig {
   // Slot positions as percentage of screen width/height
   // Format: [left% of screen width, top% of screen height]
   // These form a funnel shape: 4-3-2-1
-
   static const Map<int, List<double>> slotPositions = {
     // Row 1: 4 slots (widest, at top of garden area)
-    0: [0.15, 0.58],   // Leftmost
-    1: [0.38, 0.58],   // Left-center
-    2: [0.62, 0.58],   // Right-center
-    3: [0.85, 0.58],   // Rightmost
+    0: [0.15, 0.65],   // Leftmost
+    1: [0.38, 0.65],   // Left-center
+    2: [0.62, 0.65],   // Right-center
+    3: [0.85, 0.65],   // Rightmost
 
     // Row 2: 3 slots (narrower)
-    4: [0.25, 0.70],   // Left
-    5: [0.50, 0.70],   // Center
-    6: [0.75, 0.70],   // Right
+    4: [0.25, 0.75],   // Left
+    5: [0.50, 0.75],   // Center
+    6: [0.75, 0.75],   // Right
 
     // Row 3: 2 slots (narrower)
-    7: [0.35, 0.82],   // Left
-    8: [0.65, 0.82],   // Right
+    7: [0.38, 0.835],   // Left
+    8: [0.63, 0.835],   // Right
 
     // Row 4: 1 slot (center bottom)
     9: [0.50, 0.92],   // Center bottom
@@ -2778,9 +2777,8 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
   }
 }
 
-
 // ==========================================
-// GARDEN SCREEN - Fully Responsive
+// GARDEN SCREEN - Fully Responsive with Image Slots
 // ==========================================
 
 class GardenScreen extends StatefulWidget {
@@ -2825,7 +2823,7 @@ class _GardenScreenState extends State<GardenScreen> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // Background - Garden house
+            // Background - Garden house (WITHOUT brown garden slots)
             Image.asset(
               'assets/images/garden_house.png',
               fit: BoxFit.cover,
@@ -2835,7 +2833,7 @@ class _GardenScreenState extends State<GardenScreen> {
             if (widget.game.growSpeedLevel < 10)
               _buildSpeedButton(constraints),
 
-            // Garden slots
+            // Garden slots - now as separate clickable images like potions
             ...List.generate(10, (index) => _buildGardenSlot(constraints, index)),
 
             // Door to Lab
@@ -2877,6 +2875,7 @@ class _GardenScreenState extends State<GardenScreen> {
     );
   }
 
+  /// Builds a garden slot using the same approach as potions - clickable image without visible button
   Widget _buildGardenSlot(BoxConstraints constraints, int index) {
     final maxWidth = constraints.maxWidth;
     final maxHeight = constraints.maxHeight;
@@ -2884,16 +2883,118 @@ class _GardenScreenState extends State<GardenScreen> {
     final pos = _slotPositions[index]!;
     final left = maxWidth * pos[0];
     final top = maxHeight * pos[1];
-    final size = maxWidth * GardenLayoutConfig.slotSizePercent;
+    // INCREASED SIZE - was 0.12, now 0.18 to make slots more visible
+    final size = maxWidth * 0.18;
 
     // Center the slot on the position point
     final centeredLeft = left - (size / 2);
     final centeredTop = top - (size / 2);
 
+    // LOCKED SLOT - Show darkened gardenslot.png with lock overlay
     if (index >= widget.game.unlockedSlots) {
-      return _buildLockedSlot(context, index, centeredLeft, centeredTop, size);
+      final costs = widget.game.getGardenSlotUnlockCost(index);
+      final goldCost = costs["gold"] ?? 0;
+      final crystalCost = costs["crystal"] ?? 0;
+      final canAffordGold = widget.game.gold >= goldCost && goldCost > 0;
+      final canAffordCrystal = widget.game.crystals >= crystalCost && crystalCost > 0;
+      final isFree = goldCost == 0 && crystalCost == 0;
+
+      return Positioned(
+        left: centeredLeft,
+        top: centeredTop,
+        width: size,
+        height: size,
+        child: GestureDetector(
+          onTap: () => _showUnlockSlotDialog(context, index, goldCost, crystalCost),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Gardenslot image with dark overlay for locked state
+              Opacity(
+                opacity: 0.4,
+                child: Image.asset(
+                  'assets/images/gardenslot.png',
+                  width: size,
+                  height: size,
+                  fit: BoxFit.contain,
+                  // Add error builder to debug image loading issues
+                  errorBuilder: (context, error, stackTrace) {
+                    print('Error loading gardenslot.png: $error');
+                    return Container(
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        color: Colors.brown.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Lock overlay with cost info
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                padding: EdgeInsets.all(size * 0.15),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock,
+                      color: (canAffordGold || canAffordCrystal || isFree)
+                          ? MagicColors.crystal
+                          : Colors.grey,
+                      size: size * 0.25,
+                    ),
+                    const SizedBox(height: 2),
+                    if (isFree)
+                      Text(
+                        'FREE',
+                        style: TextStyle(
+                          color: MagicColors.leaf,
+                          fontSize: size * 0.12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    else ...[
+                      if (goldCost > 0)
+                        Text(
+                          '$goldCost',
+                          style: TextStyle(
+                            color: canAffordGold ? MagicColors.gold : Colors.grey,
+                            fontSize: size * 0.11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      if (crystalCost > 0)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$crystalCost',
+                              style: TextStyle(
+                                color: canAffordCrystal ? MagicColors.crystal : Colors.grey,
+                                fontSize: size * 0.11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Icon(Icons.diamond, color: MagicColors.crystal, size: size * 0.1),
+                          ],
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
+    // EMPTY SLOT - Show gardenslot.png with add icon
     final slot = widget.game.gardenSlots[index];
     if (slot == null) {
       return Positioned(
@@ -2903,70 +3004,52 @@ class _GardenScreenState extends State<GardenScreen> {
         height: size,
         child: GestureDetector(
           onTap: () => _showSeedSelection(context, index),
-          child: Container(
-            decoration: BoxDecoration(
-              color: MagicColors.earth.withOpacity(0.5),
-              shape: BoxShape.circle,
-              border: Border.all(color: MagicColors.leaf.withOpacity(0.6), width: 2),
-            ),
-            child: const Icon(Icons.add, color: Colors.white70, size: 24),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Gardenslot base image
+              Image.asset(
+                'assets/images/gardenslot.png',
+                width: size,
+                height: size,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  print('Error loading gardenslot.png: $error');
+                  return Container(
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      color: Colors.brown,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.brown.shade700, width: 3),
+                    ),
+                  );
+                },
+              ),
+              // Add icon overlay
+              Container(
+                decoration: BoxDecoration(
+                  color: MagicColors.leaf.withOpacity(0.4),
+                  shape: BoxShape.circle,
+                ),
+                padding: EdgeInsets.all(size * 0.2),
+                child: Icon(
+                  Icons.add,
+                  color: Colors.white,
+                  size: size * 0.3,
+                ),
+              ),
+            ],
           ),
         ),
       );
     }
 
+    // ACTIVE SLOT - Show gardenslot.png with plant growing
     return _buildActiveSlot(context, index, slot, centeredLeft, centeredTop, size);
   }
 
-  Widget _buildLockedSlot(BuildContext context, int index, double left, double top, double size) {
-    final costs = widget.game.getGardenSlotUnlockCost(index);
-    final goldCost = costs["gold"] ?? 0;
-    final crystalCost = costs["crystal"] ?? 0;
-    final canAffordGold = widget.game.gold >= goldCost && goldCost > 0;
-    final canAffordCrystal = widget.game.crystals >= crystalCost && crystalCost > 0;
-    final isFree = goldCost == 0 && crystalCost == 0;
-
-    return Positioned(
-      left: left,
-      top: top,
-      width: size,
-      height: size,
-      child: GestureDetector(
-        onTap: () => _showUnlockSlotDialog(context, index, goldCost, crystalCost),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: (canAffordGold || canAffordCrystal || isFree)
-                  ? MagicColors.crystal.withOpacity(0.8)
-                  : Colors.grey.withOpacity(0.3),
-              width: 2,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock_open, color: Colors.white54, size: 16),
-              if (isFree)
-                const Text('FREE', style: TextStyle(color: MagicColors.leaf, fontSize: 8, fontWeight: FontWeight.bold))
-              else if (goldCost > 0)
-                Text('$goldCost g', style: TextStyle(color: canAffordGold ? MagicColors.gold : Colors.grey, fontSize: 8)),
-              if (crystalCost > 0)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('$crystalCost', style: TextStyle(color: canAffordCrystal ? MagicColors.crystal : Colors.grey, fontSize: 8)),
-                    const Icon(Icons.diamond, color: MagicColors.crystal, size: 6),
-                  ],
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
+  /// Builds an active garden slot with plant growing inside
   Widget _buildActiveSlot(BuildContext context, int index, IdleGardenSlot slot, double left, double top, double size) {
     final seed = seeds[slot.seedId];
     final progress = widget.game.getGardenSlotProgress(index);
@@ -2978,56 +3061,109 @@ class _GardenScreenState extends State<GardenScreen> {
       height: size,
       child: GestureDetector(
         onTap: () => _showSlotStats(context, index),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              colors: [seed.color.withOpacity(0.8), seed.color.withOpacity(0.3)],
-            ),
-            shape: BoxShape.circle,
-            border: Border.all(color: seed.color, width: 2),
-          ),
-          child: Stack(
-            children: [
-              Center(
-                child: SizedBox(
-                  width: size * 0.9,
-                  height: size * 0.9,
-                  child: CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 3,
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.5)),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Gardenslot base image
+            Image.asset(
+              'assets/images/gardenslot.png',
+              width: size,
+              height: size,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                print('Error loading gardenslot.png: $error');
+                return Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    color: Colors.brown,
+                    shape: BoxShape.circle,
                   ),
-                ),
-              ),
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(seed.icon, style: TextStyle(fontSize: size * 0.4)),
-                    if (progress < 1)
-                      Text(
-                        widget.game.getGardenSlotTimeLeft(index),
-                        style: TextStyle(color: Colors.white70, fontSize: size * 0.15),
-                      ),
+                );
+              },
+            ),
+            // Plant content overlay
+            Container(
+              width: size * 0.75,
+              height: size * 0.75,
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    seed.color.withOpacity(0.9),
+                    seed.color.withOpacity(0.4),
                   ],
                 ),
+                shape: BoxShape.circle,
               ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: GestureDetector(
-                  onTap: () => widget.game.stopIdleGarden(index),
-                  child: Container(
-                    padding: EdgeInsets.all(size * 0.05),
-                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                    child: Icon(Icons.close, color: Colors.white, size: size * 0.15),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Progress ring
+                  SizedBox(
+                    width: size * 0.65,
+                    height: size * 0.65,
+                    child: CircularProgressIndicator(
+                      value: progress,
+                      strokeWidth: 4,
+                      backgroundColor: Colors.white24,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
+                    ),
                   ),
+                  // Plant icon and timer
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        seed.icon,
+                        style: TextStyle(
+                          fontSize: size * 0.35,
+                          shadows: const [
+                            Shadow(color: Colors.black, blurRadius: 3),
+                          ],
+                        ),
+                      ),
+                      if (progress < 1)
+                        Text(
+                          widget.game.getGardenSlotTimeLeft(index),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: size * 0.13,
+                            fontWeight: FontWeight.bold,
+                            shadows: const [
+                              Shadow(color: Colors.black, blurRadius: 2),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Close button (top right)
+            Positioned(
+              right: size * 0.05,
+              top: size * 0.05,
+              child: GestureDetector(
+                onTap: () => widget.game.stopIdleGarden(index),
+                child: Container(
+                  padding: EdgeInsets.all(size * 0.06),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(Icons.close, color: Colors.white, size: size * 0.12),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -3040,7 +3176,7 @@ class _GardenScreenState extends State<GardenScreen> {
 
     final width = maxWidth * config['width']!;
     final height = maxHeight * config['height']!;
-    final left = maxWidth * config['left']! - (width / 2); // Center on left value
+    final left = maxWidth * config['left']! - (width / 2);
     final bottom = maxHeight * config['bottom']!;
     final top = maxHeight - bottom - height;
 
@@ -3087,7 +3223,7 @@ class _GardenScreenState extends State<GardenScreen> {
   Widget _buildDebugOverlay(BoxConstraints constraints) {
     final maxWidth = constraints.maxWidth;
     final maxHeight = constraints.maxHeight;
-    final size = maxWidth * GardenLayoutConfig.slotSizePercent;
+    final size = maxWidth * 0.18; // Match the new size
 
     return Stack(
       children: List.generate(10, (index) {
@@ -3102,14 +3238,13 @@ class _GardenScreenState extends State<GardenScreen> {
           height: size,
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.green, width: 2),
-              color: Colors.green.withOpacity(0.2),
-              shape: BoxShape.circle,
+              border: Border.all(color: Colors.red, width: 2),
+              color: Colors.red.withOpacity(0.2),
             ),
             child: Center(
               child: Text(
                 '$index',
-                style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.red, fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -3120,8 +3255,6 @@ class _GardenScreenState extends State<GardenScreen> {
 
   Widget _buildPercentageDebugger(BoxConstraints constraints) {
     final offsets = _slotPositions[_selectedSlot]!;
-    final maxWidth = constraints.maxWidth;
-    final maxHeight = constraints.maxHeight;
 
     return Positioned(
       right: constraints.maxWidth * 0.04,
@@ -3428,6 +3561,7 @@ class _GardenScreenState extends State<GardenScreen> {
     );
   }
 }
+
 
 // ==========================================
 // SHOP SCREEN - Recipe Book Style
