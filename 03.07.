@@ -106,9 +106,9 @@ class LabLayoutConfig {
 
   // Navigation door position
   static const Map<String, double> gardenDoor = {
-    'right': 0.04,
-    'bottom': 0.15,      // Near floor
-    'size': 0.12,
+    'right': 0.01,
+    'bottom': 0.44,
+    'size': 0.10,
   };
 
   // Speed upgrade button
@@ -128,6 +128,57 @@ class LabLayoutConfig {
     'table2': table2,
     'table3': table3,
     'table4': table4,
+  };
+}
+
+// ==========================================
+// GARDEN LAYOUT CONFIGURATION
+// ==========================================
+
+class GardenLayoutConfig {
+  // Garden area definition (bottom 40% of screen where soil is)
+  static const double gardenAreaTop = 0.65;    // Start at 55% from top
+  static const double gardenAreaHeight = 0.40; // Bottom 40% of screen
+
+  // Slot positions as percentage of screen width/height
+  // Format: [left% of screen width, top% of screen height]
+  // These form a funnel shape: 4-3-2-1
+
+  static const Map<int, List<double>> slotPositions = {
+    // Row 1: 4 slots (widest, at top of garden area)
+    0: [0.15, 0.58],   // Leftmost
+    1: [0.38, 0.58],   // Left-center
+    2: [0.62, 0.58],   // Right-center
+    3: [0.85, 0.58],   // Rightmost
+
+    // Row 2: 3 slots (narrower)
+    4: [0.25, 0.70],   // Left
+    5: [0.50, 0.70],   // Center
+    6: [0.75, 0.70],   // Right
+
+    // Row 3: 2 slots (narrower)
+    7: [0.35, 0.82],   // Left
+    8: [0.65, 0.82],   // Right
+
+    // Row 4: 1 slot (center bottom)
+    9: [0.50, 0.92],   // Center bottom
+  };
+
+  // Slot size as percentage of screen width (square slots)
+  static const double slotSizePercent = 0.12;  // 12% of screen width
+
+  // Door to lab position
+  static const Map<String, double> labDoor = {
+    'left': 0.50,      // Center horizontally
+    'bottom': 0.45,    // Just above garden area
+    'width': 0.20,     // 20% of screen width
+    'height': 0.08,    // 8% of screen height
+  };
+
+  // Speed upgrade button position
+  static const Map<String, double> speedButton = {
+    'left': 0.04,
+    'top': 0.12,
   };
 }
 
@@ -2728,9 +2779,11 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
 }
 
 
-// GARDEN SCREEN - Fixed positioning
+// ==========================================
+// GARDEN SCREEN - Fully Responsive
+// ==========================================
 
-class GardenScreen extends StatelessWidget {
+class GardenScreen extends StatefulWidget {
   final GameState game;
   final Function(int) onNavigate;
   final Function(List<String>)? onLevelUp;
@@ -2743,136 +2796,144 @@ class GardenScreen extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // Background - Garden house
-        Image.asset(
-          'assets/images/garden_house.png',
-          fit: BoxFit.cover,
-        ),
+  State<GardenScreen> createState() => _GardenScreenState();
+}
 
-        // Content
-        SafeArea(
-          child: Column(
-            children: [
-              const SizedBox(height: 100), // Space for resource bar
+class _GardenScreenState extends State<GardenScreen> {
+  // Mutable positions for runtime tuning
+  late Map<int, List<double>> _slotPositions;
+  bool _showDebugger = false;
+  int _selectedSlot = 0;
 
-              // Speed upgrade button at top
-              if (game.growSpeedLevel < 10)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showSpeedUpgradeDialog(context),
-                    icon: const Icon(Icons.speed, size: 18),
-                    label: Text('Upgrade Speed (Lvl ${game.growSpeedLevel + 1})'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: MagicColors.leaf.withOpacity(0.8),
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white70),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                  ),
-                ),
-
-              const Spacer(),
-
-              // Garden plots positioned at BOTTOM where soil actually is
-              // Based on your screenshot, soil is in bottom area
-              Padding(
-                padding: const EdgeInsets.only(bottom: 120, left: 20, right: 20),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Row 1: 4 plots (front row)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(4, (i) => _buildGardenPlot(context, i)),
-                    ),
-                    const SizedBox(height: 12),
-                    // Row 2: 3 plots (middle row)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(width: 30),
-                        _buildGardenPlot(context, 4),
-                        const SizedBox(width: 40),
-                        _buildGardenPlot(context, 5),
-                        const SizedBox(width: 40),
-                        _buildGardenPlot(context, 6),
-                        const SizedBox(width: 30),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Row 3: 3 plots (back row near house)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(width: 50),
-                        _buildGardenPlot(context, 7),
-                        const SizedBox(width: 60),
-                        _buildGardenPlot(context, 8),
-                        const SizedBox(width: 60),
-                        _buildGardenPlot(context, 9),
-                        const SizedBox(width: 50),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // Door to Lab - positioned at house door area (center)
-        Positioned(
-          left: MediaQuery.of(context).size.width * 0.5 - 40,
-          bottom: 200, // Above the soil plots
-          child: GestureDetector(
-            onTap: () => onNavigate(0),
-            child: Container(
-              width: 80,
-              height: 60,
-              decoration: BoxDecoration(
-                color: Colors.brown.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.brown.shade300, width: 2),
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.door_front_door_outlined, color: Colors.white70, size: 24),
-                  Text(
-                    'To Lab',
-                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+  @override
+  void initState() {
+    super.initState();
+    _slotPositions = Map.fromEntries(
+      GardenLayoutConfig.slotPositions.entries.map(
+            (e) => MapEntry(e.key, List<double>.from(e.value)),
+      ),
     );
   }
 
-  Widget _buildGardenPlot(BuildContext context, int index) {
-    // Size reduced to fit better
-    const double size = 60;
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxWidth = constraints.maxWidth;
+        final maxHeight = constraints.maxHeight;
 
-    if (index >= game.unlockedSlots) {
-      final costs = game.getGardenSlotUnlockCost(index);
-      final goldCost = costs["gold"] ?? 0;
-      final crystalCost = costs["crystal"] ?? 0;
-      final canAffordGold = game.gold >= goldCost && goldCost > 0;
-      final canAffordCrystal = game.crystals >= crystalCost && crystalCost > 0;
-      final isFree = goldCost == 0 && crystalCost == 0;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background - Garden house
+            Image.asset(
+              'assets/images/garden_house.png',
+              fit: BoxFit.cover,
+            ),
 
-      return GestureDetector(
+            // Speed upgrade button
+            if (widget.game.growSpeedLevel < 10)
+              _buildSpeedButton(constraints),
+
+            // Garden slots
+            ...List.generate(10, (index) => _buildGardenSlot(constraints, index)),
+
+            // Door to Lab
+            _buildLabDoor(constraints),
+
+            // Debug toggle
+            _buildDebugToggle(constraints),
+
+            // Debug overlays
+            if (_showDebugger) ...[
+              _buildDebugOverlay(constraints),
+              _buildPercentageDebugger(constraints),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSpeedButton(BoxConstraints constraints) {
+    final config = GardenLayoutConfig.speedButton;
+    final left = constraints.maxWidth * config['left']!;
+    final top = constraints.maxHeight * config['top']!;
+
+    return Positioned(
+      left: left,
+      top: top,
+      child: ElevatedButton.icon(
+        onPressed: () => _showSpeedUpgradeDialog(context),
+        icon: const Icon(Icons.speed, size: 18),
+        label: Text('Upgrade Speed (Lvl ${widget.game.growSpeedLevel + 1})'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: MagicColors.leaf.withOpacity(0.8),
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: Colors.white70),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGardenSlot(BoxConstraints constraints, int index) {
+    final maxWidth = constraints.maxWidth;
+    final maxHeight = constraints.maxHeight;
+
+    final pos = _slotPositions[index]!;
+    final left = maxWidth * pos[0];
+    final top = maxHeight * pos[1];
+    final size = maxWidth * GardenLayoutConfig.slotSizePercent;
+
+    // Center the slot on the position point
+    final centeredLeft = left - (size / 2);
+    final centeredTop = top - (size / 2);
+
+    if (index >= widget.game.unlockedSlots) {
+      return _buildLockedSlot(context, index, centeredLeft, centeredTop, size);
+    }
+
+    final slot = widget.game.gardenSlots[index];
+    if (slot == null) {
+      return Positioned(
+        left: centeredLeft,
+        top: centeredTop,
+        width: size,
+        height: size,
+        child: GestureDetector(
+          onTap: () => _showSeedSelection(context, index),
+          child: Container(
+            decoration: BoxDecoration(
+              color: MagicColors.earth.withOpacity(0.5),
+              shape: BoxShape.circle,
+              border: Border.all(color: MagicColors.leaf.withOpacity(0.6), width: 2),
+            ),
+            child: const Icon(Icons.add, color: Colors.white70, size: 24),
+          ),
+        ),
+      );
+    }
+
+    return _buildActiveSlot(context, index, slot, centeredLeft, centeredTop, size);
+  }
+
+  Widget _buildLockedSlot(BuildContext context, int index, double left, double top, double size) {
+    final costs = widget.game.getGardenSlotUnlockCost(index);
+    final goldCost = costs["gold"] ?? 0;
+    final crystalCost = costs["crystal"] ?? 0;
+    final canAffordGold = widget.game.gold >= goldCost && goldCost > 0;
+    final canAffordCrystal = widget.game.crystals >= crystalCost && crystalCost > 0;
+    final isFree = goldCost == 0 && crystalCost == 0;
+
+    return Positioned(
+      left: left,
+      top: top,
+      width: size,
+      height: size,
+      child: GestureDetector(
         onTap: () => _showUnlockSlotDialog(context, index, goldCost, crystalCost),
         child: Container(
-          width: size,
-          height: size,
           decoration: BoxDecoration(
             color: Colors.black.withOpacity(0.4),
             shape: BoxShape.circle,
@@ -2902,70 +2963,277 @@ class GardenScreen extends StatelessWidget {
             ],
           ),
         ),
-      );
-    }
+      ),
+    );
+  }
 
-    final slot = game.gardenSlots[index];
-    if (slot == null) {
-      return GestureDetector(
-        onTap: () => _showSeedSelection(context, index),
+  Widget _buildActiveSlot(BuildContext context, int index, IdleGardenSlot slot, double left, double top, double size) {
+    final seed = seeds[slot.seedId];
+    final progress = widget.game.getGardenSlotProgress(index);
+
+    return Positioned(
+      left: left,
+      top: top,
+      width: size,
+      height: size,
+      child: GestureDetector(
+        onTap: () => _showSlotStats(context, index),
         child: Container(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              colors: [seed.color.withOpacity(0.8), seed.color.withOpacity(0.3)],
+            ),
+            shape: BoxShape.circle,
+            border: Border.all(color: seed.color, width: 2),
+          ),
+          child: Stack(
+            children: [
+              Center(
+                child: SizedBox(
+                  width: size * 0.9,
+                  height: size * 0.9,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 3,
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.5)),
+                  ),
+                ),
+              ),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(seed.icon, style: TextStyle(fontSize: size * 0.4)),
+                    if (progress < 1)
+                      Text(
+                        widget.game.getGardenSlotTimeLeft(index),
+                        style: TextStyle(color: Colors.white70, fontSize: size * 0.15),
+                      ),
+                  ],
+                ),
+              ),
+              Positioned(
+                right: 0,
+                top: 0,
+                child: GestureDetector(
+                  onTap: () => widget.game.stopIdleGarden(index),
+                  child: Container(
+                    padding: EdgeInsets.all(size * 0.05),
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    child: Icon(Icons.close, color: Colors.white, size: size * 0.15),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabDoor(BoxConstraints constraints) {
+    final maxWidth = constraints.maxWidth;
+    final maxHeight = constraints.maxHeight;
+    final config = GardenLayoutConfig.labDoor;
+
+    final width = maxWidth * config['width']!;
+    final height = maxHeight * config['height']!;
+    final left = maxWidth * config['left']! - (width / 2); // Center on left value
+    final bottom = maxHeight * config['bottom']!;
+    final top = maxHeight - bottom - height;
+
+    return Positioned(
+      left: left,
+      top: top,
+      width: width,
+      height: height,
+      child: GestureDetector(
+        onTap: () => widget.onNavigate(0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.brown.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.brown.shade300, width: 2),
+          ),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.door_front_door_outlined, color: Colors.white70, size: 24),
+              Text(
+                'To Lab',
+                style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDebugToggle(BoxConstraints constraints) {
+    return Positioned(
+      right: constraints.maxWidth * 0.04,
+      top: constraints.maxHeight * 0.20,
+      child: FloatingActionButton.small(
+        onPressed: () => setState(() => _showDebugger = !_showDebugger),
+        backgroundColor: _showDebugger ? Colors.red : Colors.green,
+        child: Icon(_showDebugger ? Icons.close : Icons.tune),
+      ),
+    );
+  }
+
+  Widget _buildDebugOverlay(BoxConstraints constraints) {
+    final maxWidth = constraints.maxWidth;
+    final maxHeight = constraints.maxHeight;
+    final size = maxWidth * GardenLayoutConfig.slotSizePercent;
+
+    return Stack(
+      children: List.generate(10, (index) {
+        final pos = _slotPositions[index]!;
+        final left = maxWidth * pos[0] - (size / 2);
+        final top = maxHeight * pos[1] - (size / 2);
+
+        return Positioned(
+          left: left,
+          top: top,
           width: size,
           height: size,
-          decoration: BoxDecoration(
-            color: MagicColors.earth.withOpacity(0.5),
-            shape: BoxShape.circle,
-            border: Border.all(color: MagicColors.leaf.withOpacity(0.6), width: 2),
-          ),
-          child: const Icon(Icons.add, color: Colors.white70, size: 24),
-        ),
-      );
-    }
-
-    final seed = seeds[slot.seedId];
-    final progress = game.getGardenSlotProgress(index);
-
-    return GestureDetector(
-      onTap: () => _showSlotStats(context, index),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            colors: [seed.color.withOpacity(0.8), seed.color.withOpacity(0.3)],
-          ),
-          shape: BoxShape.circle,
-          border: Border.all(color: seed.color, width: 2),
-        ),
-        child: Stack(
-          children: [
-            CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 2,
-              backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.5)),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.green, width: 2),
+              color: Colors.green.withOpacity(0.2),
+              shape: BoxShape.circle,
             ),
-            Center(
+            child: Center(
+              child: Text(
+                '$index',
+                style: const TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildPercentageDebugger(BoxConstraints constraints) {
+    final offsets = _slotPositions[_selectedSlot]!;
+    final maxWidth = constraints.maxWidth;
+    final maxHeight = constraints.maxHeight;
+
+    return Positioned(
+      right: constraints.maxWidth * 0.04,
+      top: constraints.maxHeight * 0.26,
+      width: constraints.maxWidth * 0.70,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '🔧 Garden Slot Tuner',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy, color: Colors.green),
+                  onPressed: () {
+                    final code = _slotPositions.entries
+                        .map((e) => '    ${e.key}: [${e.value[0].toStringAsFixed(2)}, ${e.value[1].toStringAsFixed(2)}],')
+                        .join('\n');
+                    Clipboard.setData(ClipboardData(
+                      text: 'static const Map<int, List<double>> slotPositions = {\n$code\n  };',
+                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Copied to clipboard!')),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const Divider(color: Colors.white24),
+            Wrap(
+              spacing: 8,
+              children: List.generate(10, (i) {
+                return ChoiceChip(
+                  label: Text('$i'),
+                  selected: _selectedSlot == i,
+                  onSelected: (_) => setState(() => _selectedSlot = i),
+                  selectedColor: Colors.green,
+                );
+              }),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(seed.icon, style: const TextStyle(fontSize: 24)),
-                  if (progress < 1)
-                    Text(game.getGardenSlotTimeLeft(index), style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                  Text('Slot $_selectedSlot', style: const TextStyle(color: Colors.white70)),
+                  Text(
+                    'Left: ${(offsets[0] * 100).toStringAsFixed(1)}% of screen width\n'
+                        'Top: ${(offsets[1] * 100).toStringAsFixed(1)}% of screen height',
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
-            Positioned(
-              right: 0,
-              top: 0,
-              child: GestureDetector(
-                onTap: () => game.stopIdleGarden(index),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                  child: const Icon(Icons.close, color: Colors.white, size: 10),
-                ),
-              ),
+            const SizedBox(height: 16),
+            Text('Horizontal (0=left, 1=right)', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            Slider(
+              value: offsets[0],
+              min: 0.0,
+              max: 1.0,
+              divisions: 100,
+              activeColor: Colors.blue,
+              label: '${(offsets[0] * 100).toStringAsFixed(0)}%',
+              onChanged: (v) => setState(() => _slotPositions[_selectedSlot]![0] = v),
+            ),
+            Text('Vertical (0=top, 1=bottom)', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            Slider(
+              value: offsets[1],
+              min: 0.0,
+              max: 1.0,
+              divisions: 100,
+              activeColor: Colors.orange,
+              label: '${(offsets[1] * 100).toStringAsFixed(0)}%',
+              onChanged: (v) => setState(() => _slotPositions[_selectedSlot]![1] = v),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildPresetButton('Far Left', 0.10, offsets[1]),
+                _buildPresetButton('Center', 0.50, offsets[1]),
+                _buildPresetButton('Far Right', 0.90, offsets[1]),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildPresetButton('High', offsets[0], 0.55),
+                _buildPresetButton('Mid', offsets[0], 0.75),
+                _buildPresetButton('Low', offsets[0], 0.95),
+              ],
             ),
           ],
         ),
@@ -2973,8 +3241,23 @@ class GardenScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildPresetButton(String label, double left, double top) {
+    return TextButton(
+      onPressed: () => setState(() {
+        _slotPositions[_selectedSlot]![0] = left;
+        _slotPositions[_selectedSlot]![1] = top;
+      }),
+      style: TextButton.styleFrom(
+        backgroundColor: Colors.white.withOpacity(0.1),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 11)),
+    );
+  }
+
+  // Dialog methods (keep existing implementations)
   void _showSpeedUpgradeDialog(BuildContext context) {
-    final cost = game.getNextGrowSpeedCost();
+    final cost = widget.game.getNextGrowSpeedCost();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -2983,13 +3266,13 @@ class GardenScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Current: Level ${game.growSpeedLevel}', style: const TextStyle(color: MagicColors.textLight)),
-            Text('Next: Level ${game.growSpeedLevel + 1}', style: const TextStyle(color: MagicColors.textLight)),
+            Text('Current: Level ${widget.game.growSpeedLevel}', style: const TextStyle(color: MagicColors.textLight)),
+            Text('Next: Level ${widget.game.growSpeedLevel + 1}', style: const TextStyle(color: MagicColors.textLight)),
             const SizedBox(height: 16),
             Text(
               'Cost: $cost Gold',
               style: TextStyle(
-                color: game.gold >= cost ? MagicColors.gold : Colors.red,
+                color: widget.game.gold >= cost ? MagicColors.gold : Colors.red,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -2999,8 +3282,8 @@ class GardenScreen extends StatelessWidget {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: game.gold >= cost ? () {
-              game.upgradeGrowSpeed();
+            onPressed: widget.game.gold >= cost ? () {
+              widget.game.upgradeGrowSpeed();
               Navigator.pop(ctx);
             } : null,
             child: const Text('Upgrade'),
@@ -3025,10 +3308,10 @@ class GardenScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.monetization_on, color: MagicColors.gold),
                 title: Text('$goldCost Gold', style: const TextStyle(color: MagicColors.textLight)),
-                trailing: game.gold >= goldCost
+                trailing: widget.game.gold >= goldCost
                     ? ElevatedButton(
                   onPressed: () {
-                    game.unlockGardenSlotWithGold();
+                    widget.game.unlockGardenSlotWithGold();
                     Navigator.pop(ctx);
                   },
                   child: const Text('Buy'),
@@ -3039,10 +3322,10 @@ class GardenScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.diamond, color: MagicColors.crystal),
                 title: Text('$crystalCost Crystals', style: const TextStyle(color: MagicColors.textLight)),
-                trailing: game.crystals >= crystalCost
+                trailing: widget.game.crystals >= crystalCost
                     ? ElevatedButton(
                   onPressed: () {
-                    game.unlockGardenSlotWithCrystals();
+                    widget.game.unlockGardenSlotWithCrystals();
                     Navigator.pop(ctx);
                   },
                   child: const Text('Buy'),
@@ -3069,9 +3352,9 @@ class GardenScreen extends StatelessWidget {
           child: ListView(
             shrinkWrap: true,
             children: seeds.map((s) {
-              final unlocked = game.isSeedUnlocked(s.id);
-              final canAfford = s.cost == 0 || game.gold >= s.cost;
-              final growTime = game.getGrowTime(s.plantId);
+              final unlocked = widget.game.isSeedUnlocked(s.id);
+              final canAfford = s.cost == 0 || widget.game.gold >= s.cost;
+              final growTime = widget.game.getGrowTime(s.plantId);
 
               if (!unlocked) {
                 return ListTile(
@@ -3093,7 +3376,7 @@ class GardenScreen extends StatelessWidget {
                   style: TextStyle(color: s.color, fontWeight: FontWeight.bold),
                 ),
                 onTap: canAfford ? () {
-                  game.startIdleGarden(slotIndex, s.id);
+                  widget.game.startIdleGarden(slotIndex, s.id);
                   Navigator.pop(ctx);
                 } : null,
               );
@@ -3105,10 +3388,10 @@ class GardenScreen extends StatelessWidget {
   }
 
   void _showSlotStats(BuildContext context, int index) {
-    final slot = game.gardenSlots[index];
+    final slot = widget.game.gardenSlots[index];
     if (slot == null) return;
     final seed = seeds[slot.seedId];
-    final plantsPerHour = game.getGardenPlantsPerHour(index);
+    final plantsPerHour = widget.game.getGardenPlantsPerHour(index);
 
     showDialog(
       context: context,
