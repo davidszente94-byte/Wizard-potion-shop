@@ -1765,6 +1765,9 @@ class _MyAppState extends State<MyApp> {
                   child: ResourceBar(game: game),
                 ),
 
+              if (screen != 2 && screen != 3)
+                const AspectRatioDebugFrames(),
+
               // Shop button (floating, visible on Lab and Garden)
               if (screen != 2 && screen != 3)
                 Positioned(
@@ -4607,6 +4610,343 @@ class _PulsatingGlowState extends State<PulsatingGlow> with SingleTickerProvider
           ],
         );
       },
+    );
+  }
+
+}
+
+// ==========================================
+// ASPECT RATIO DEBUG FRAMES - Fixed Pixel Sizes
+// Always shows exact target dimensions, never scales
+// If screen is too small, frames show overflow/cutoff
+// ==========================================
+// ==========================================
+// ASPECT RATIO DEBUG FRAMES - Non-blocking, fixed sizes, portrait tablet
+// Allows full game interaction, no warnings, tablet in portrait mode
+// ==========================================
+class AspectRatioDebugFrames extends StatelessWidget {
+  const AspectRatioDebugFrames({super.key});
+
+  // FIXED TARGET DIMENSIONS - Never change
+  // All in portrait orientation (taller than wide)
+  static const double ultraTallW = 439;   // 9:21 Ultra Tall
+  static const double ultraTallH = 1024;
+  static const double standardW = 576;    // 9:16 Standard
+  static const double standardH = 1024;
+  static const double tabletW = 768;        // 3:4 Tablet (PORTRAIT - was 1024x768)
+  static const double tabletH = 1024;     // Now 768x1024 (standing tablet)
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+
+        // Find the center of the screen
+        final centerX = screenWidth / 2;
+        final centerY = screenHeight / 2;
+
+        // Calculate positions (all centered on same point)
+        final ultraTallLeft = centerX - (ultraTallW / 2);
+        final ultraTallTop = centerY - (ultraTallH / 2);
+        final standardLeft = centerX - (standardW / 2);
+        final standardTop = centerY - (standardH / 2);
+        final tabletLeft = centerX - (tabletW / 2);
+        final tabletTop = centerY - (tabletH / 2);
+
+        // Wrap everything in IgnorePointer so clicks pass through to game
+        return IgnorePointer(
+          child: Stack(
+            clipBehavior: Clip.none, // Allow frames to extend beyond screen
+            children: [
+              // OUTERMOST: Tablet 3:4 Portrait (768×1024) - Blue
+              Positioned(
+                left: tabletLeft,
+                top: tabletTop,
+                width: tabletW,
+                height: tabletH,
+                child: _buildFrame(
+                  width: tabletW,
+                  height: tabletH,
+                  label: '3:4 TABLET',
+                  resolution: '768×1024',
+                  realDevice: 'iPad Portrait, Android Tablets',
+                  color: Colors.blue,
+                  isOutermost: true,
+                ),
+              ),
+
+              // MIDDLE: Standard 9:16 (576×1024) - Green
+              Positioned(
+                left: standardLeft,
+                top: standardTop,
+                width: standardW,
+                height: standardH,
+                child: _buildFrame(
+                  width: standardW,
+                  height: standardH,
+                  label: '9:16 STANDARD',
+                  resolution: '576×1024',
+                  realDevice: 'iPhone 15, Samsung S24, Pixel 8',
+                  color: Colors.green,
+                  isOutermost: false,
+                ),
+              ),
+
+              // INNERMOST: Ultra Tall 9:21 (439×1024) - Red
+              Positioned(
+                left: ultraTallLeft,
+                top: ultraTallTop,
+                width: ultraTallW,
+                height: ultraTallH,
+                child: _buildFrame(
+                  width: ultraTallW,
+                  height: ultraTallH,
+                  label: '9:21 ULTRA',
+                  resolution: '439×1024',
+                  realDevice: 'Samsung S24 Ultra, iPhone 15 Pro Max',
+                  color: Colors.red,
+                  isOutermost: false,
+                ),
+              ),
+
+              // Center point marker (shared by all frames)
+              Positioned(
+                left: centerX - 6,
+                top: centerY - 6,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.black, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Info panel at top-left (small, non-intrusive)
+              Positioned(
+                top: 10,
+                left: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  color: Colors.black.withOpacity(0.7),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Screen: ${screenWidth.toInt()}×${screenHeight.toInt()}',
+                        style: const TextStyle(
+                          color: Colors.yellow,
+                          fontSize: 10,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Frames: 439×1024 | 576×1024 | 768×1024',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Legend at bottom (small)
+              Positioned(
+                bottom: 10,
+                left: 10,
+                right: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  color: Colors.black.withOpacity(0.7),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildLegendItem(Colors.red, '9:21 Ultra'),
+                      const SizedBox(width: 16),
+                      _buildLegendItem(Colors.green, '9:16 Standard'),
+                      const SizedBox(width: 16),
+                      _buildLegendItem(Colors.blue, '3:4 Tablet'),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFrame({
+    required double width,
+    required double height,
+    required String label,
+    required String resolution,
+    required String realDevice,
+    required Color color,
+    required bool isOutermost,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: color.withOpacity(0.8),
+          width: isOutermost ? 2 : 1.5,
+        ),
+        color: Colors.transparent, // No fill - completely see-through
+      ),
+      child: Stack(
+        children: [
+          // Label at top
+          if (isOutermost)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                color: color.withOpacity(0.85),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    Text(
+                      '$resolution • $realDevice',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 8,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Positioned(
+              top: 4,
+              left: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                color: color.withOpacity(0.85),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+
+          // Center crosshair (subtle)
+          Center(
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                border: Border.all(color: color.withOpacity(0.4), width: 1),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // 50% guide lines (very subtle)
+          Positioned(
+            top: height * 0.5 - 0.5,
+            left: 0,
+            right: 0,
+            child: Container(height: 1, color: color.withOpacity(0.2)),
+          ),
+          Positioned(
+            left: width * 0.5 - 0.5,
+            top: 0,
+            bottom: 0,
+            child: Container(width: 1, color: color.withOpacity(0.2)),
+          ),
+
+          // Bottom info
+          Positioned(
+            bottom: 4,
+            left: 4,
+            right: 4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+              color: Colors.black.withOpacity(0.6),
+              child: Text(
+                '$resolution',
+                style: TextStyle(
+                  color: color.withOpacity(0.9),
+                  fontSize: 8,
+                  fontFamily: 'monospace',
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 9,
+          ),
+        ),
+      ],
     );
   }
 }
