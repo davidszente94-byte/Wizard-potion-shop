@@ -224,21 +224,18 @@ class ResourceBar extends StatelessWidget {
     return Container(
       height: MediaQuery.of(context).size.height * 0.08, // 8% of screen
       color: Colors.black, // SOLID BLACK BACKGROUND - no transparency, no gradient
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // LEFT SIDE: Level, XP, Gold, Crystals
-              _buildLeftSection(),
+      child: Padding(  // REMOVED SafeArea wrapper
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // LEFT SIDE: Level, XP, Gold, Crystals
+            _buildLeftSection(),
 
-              // RIGHT SIDE: Buff icons
-              _buildRightSection(),
-            ],
-          ),
+            // RIGHT SIDE: Buff icons
+            _buildRightSection(),
+          ],
         ),
       ),
     );
@@ -1740,7 +1737,6 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: Colors.transparent,
-
         cardTheme: CardThemeData(
           color: MagicColors.surface.withOpacity(0.8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1751,42 +1747,152 @@ class _MyAppState extends State<MyApp> {
         animation: game,
         builder: (_, __) => Scaffold(
           backgroundColor: Colors.transparent,
-          body: Stack(
-            children: [
-              // Main content based on current screen
-              _getScreen(),
-
-              // Resource bar overlay (only on Lab and Garden screens)
-              if (screen != 2 && screen != 3)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: ResourceBar(game: game),
+          // WRAP EVERYTHING IN SAFEAREA
+          body: SafeArea(
+            child: Stack(
+              fit: StackFit.expand, // Make stack fill entire SafeArea
+              children: [
+                // BACKGROUND fills entire width of screen (not constrained)
+                Positioned.fill(
+                  child: _getScreenBackground(), // New method for backgrounds only
                 ),
 
-              if (screen != 2 && screen != 3)
-                const AspectRatioDebugFrames(),
+                // CONSTRAINED UI layer (tables, buttons, interactive elements)
+                _buildConstrainedScreen(),
 
-              // Shop button (floating, visible on Lab and Garden)
-              if (screen != 2 && screen != 3)
-                Positioned(
-                  right: 16,
-                  bottom: 24,
-                  child: _buildShopButton(),
-                ),
+                // Resource bar overlay (only on Lab and Garden screens)
+                if (screen != 2 && screen != 3)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: ResourceBar(game: game),
+                  ),
 
-              // Daily reward overlay
-              if (showDailyReward) _buildDailyRewardDialog(),
+                if (screen != 2 && screen != 3)
+                  const AspectRatioDebugFrames(),
 
-              // Level up overlay
-              if (levelUpRewards.isNotEmpty) _buildLevelUpDialog(),
-            ],
+                // Shop button (floating)
+                if (screen != 2 && screen != 3)
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: _buildShopButton(),
+                  ),
+
+                // Overlays
+                if (showDailyReward) _buildDailyRewardDialog(),
+                if (levelUpRewards.isNotEmpty) _buildLevelUpDialog(),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  // CONSTRAINED LAYER - only for interactive UI elements, transparent background
+  Widget _buildConstrainedScreen() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+
+        // Target aspect ratio: 9:16 (portrait)
+        const targetAspect = 9.0 / 16.0;
+        final currentAspect = screenWidth / screenHeight;
+
+        double finalWidth;
+        double finalHeight;
+
+        if (currentAspect > targetAspect) {
+          // Screen is wider than 9:16 - fix height, calc width
+          finalHeight = screenHeight;
+          finalWidth = finalHeight * targetAspect;
+        } else {
+          // Screen is taller/narrower than 9:16 - fix width, calc height
+          finalWidth = screenWidth;
+          finalHeight = finalWidth / targetAspect;
+        }
+
+        return Center(
+          child: SizedBox(
+            width: finalWidth,
+            height: finalHeight,
+            child: _getScreenContent(), // Returns the actual screen content WITHOUT background
+          ),
+        );
+      },
+    );
+  }
+
+
+
+  // ADD THIS METHOD HERE - Background only, fills full width
+  Widget _getScreenBackground() {
+    switch (screen) {
+      case 0: // Lab
+        return Image.asset(
+          'assets/images/room_cozy.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        );
+      case 1: // Garden
+        return Image.asset(
+          'assets/images/garden_house.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        );
+      case 2: // Shop
+        return Image.asset(
+          'assets/images/shopscreen.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        );
+      case 3: // Recipe Book
+        return Image.asset(
+          'assets/images/book_open.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        );
+      default:
+        return Image.asset(
+          'assets/images/room_cozy.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        );
+    }
+  }
+
+  // ADD THIS METHOD HERE - Screen content WITHOUT background
+  Widget _getScreenContent() {
+    switch (screen) {
+      case 0:
+        return AlchemyLabScreen(
+          game: game,
+          onNavigate: navigateToScreen,
+          onLevelUp: showLevelUpDialog,
+        );
+      case 1:
+        return GardenScreen(
+          game: game,
+          onNavigate: navigateToScreen,
+          onLevelUp: showLevelUpDialog,
+        );
+      case 2:
+        return ShopScreen(game: game, onNavigate: navigateToScreen);
+      case 3:
+        return RecipeBookScreen(game: game, onNavigate: navigateToScreen);
+      default:
+        return AlchemyLabScreen(
+          game: game,
+          onNavigate: navigateToScreen,
+          onLevelUp: showLevelUpDialog,
+        );
+    }
+  }
+
+
 
   Widget _buildShopButton() {
     return GestureDetector(
@@ -2065,10 +2171,13 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // Background
-            Image.asset(
-              'assets/images/room_cozy.png',
-              fit: BoxFit.cover,
+            // Background - use BoxFit.contain to NEVER distort, center it
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/room_cozy.png',
+                fit: BoxFit.cover, // Fills screen, crops edges, no distortion
+                alignment: Alignment.center,
+              ),
             ),
 
             // Tables positioned from BOTTOM (floor level)
@@ -2212,7 +2321,7 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
       final canAffordCrystal = widget.game.crystals >= crystalCost && crystalCost > 0;
 
       return Positioned(
-        left: left - (size / 2),  // Center on position
+        left: left - (size / 2),
         top: top,
         width: size,
         height: size,
@@ -2275,70 +2384,107 @@ class _AlchemyLabScreenState extends State<AlchemyLabScreen> {
       left: left - (size / 2),
       top: top,
       width: size,
-      height: size,
+      height: size + 8, // Extra space for progress bar
       child: GestureDetector(
         onTap: () => _showBrewStats(context, slotIndex),
-        child: Stack(
-          alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              'assets/images/potion.png',
-              fit: BoxFit.contain,
-            ),
-            // Progress fill - adjusted for square potion
-            ClipRRect(
-              borderRadius: BorderRadius.circular(size * 0.3),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: size * 0.7,
-                  height: size * 0.6 * progress,
-                  margin: EdgeInsets.only(bottom: size * 0.15),
-                  decoration: BoxDecoration(
-                    color: rarityColor(recipe.rarity).withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(size * 0.2),
-                  ),
-                ),
-              ),
-            ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
+            // Potion with boiling effect
+            Stack(
+              alignment: Alignment.center,
               children: [
-                Text(
-                  recipe.icon,
-                  style: TextStyle(
-                    fontSize: size * 0.4,
-                    shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
-                  ),
+                // Base potion bottle image
+                Image.asset(
+                  'assets/images/potion.png',
+                  width: size,
+                  height: size,
+                  fit: BoxFit.contain,
                 ),
+                // Boiling liquid overlay
                 if (progress < 1)
-                  Text(
-                    widget.game.getBrewSlotTimeLeft(slotIndex),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: size * 0.16,
-                      fontWeight: FontWeight.bold,
-                      shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
+                  Positioned(
+                    bottom: size * 0.15,
+                    child: BoilingPotionWidget(
+                      progress: progress,
+                      liquidColor: rarityColor(recipe.rarity),
+                      size: size * 0.6,
                     ),
                   ),
+                // Recipe icon centered
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      recipe.icon,
+                      style: TextStyle(
+                        fontSize: size * 0.35,
+                        shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
+                      ),
+                    ),
+                    if (progress < 1)
+                      Text(
+                        widget.game.getBrewSlotTimeLeft(slotIndex),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: size * 0.14,
+                          fontWeight: FontWeight.bold,
+                          shadows: const [Shadow(color: Colors.black, blurRadius: 2)],
+                        ),
+                      ),
+                  ],
+                ),
+                // Close button
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: GestureDetector(
+                    onTap: () => widget.game.stopIdleBrew(slotIndex),
+                    child: Container(
+                      padding: EdgeInsets.all(size * 0.05),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.close, color: Colors.white, size: size * 0.15),
+                    ),
+                  ),
+                ),
               ],
             ),
-            Positioned(
-              right: 0,
-              top: 0,
-              child: GestureDetector(
-                onTap: () => widget.game.stopIdleBrew(slotIndex),
-                child: Container(
-                  padding: EdgeInsets.all(size * 0.05),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
+            // Thin progress bar underneath
+            if (progress < 1)
+              Container(
+                width: size * 0.8,
+                height: 3,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(1.5),
+                ),
+                child: FractionallySizedBox(
+                  alignment: Alignment.centerLeft,
+                  widthFactor: progress,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          rarityColor(recipe.rarity),
+                          rarityColor(recipe.rarity).withOpacity(0.7),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: rarityColor(recipe.rarity).withOpacity(0.5),
+                          blurRadius: 4,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Icon(Icons.close, color: Colors.white, size: size * 0.15),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -2998,12 +3144,14 @@ class _GardenScreenState extends State<GardenScreen> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // Background - Garden house (WITHOUT brown garden slots)
-            Image.asset(
-              'assets/images/garden_house.png',
-              fit: BoxFit.cover,
+            // Background - use BoxFit.contain to NEVER distort
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/garden_house.png',
+                fit: BoxFit.cover, // Fills screen, crops edges, no distortion
+                alignment: Alignment.center,
+              ),
             ),
-
             // Speed upgrade button
             if (widget.game.growSpeedLevel < 10)
               _buildSpeedButton(constraints),
@@ -3711,10 +3859,13 @@ class ShopScreen extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background - Open book
-          Image.asset(
-            'assets/images/shopscreen.png',
-            fit: BoxFit.cover,
+          // Background - Open book, never distort
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/shopscreen.png',
+              fit: BoxFit.cover, // Fills screen, crops edges, no distortion
+              alignment: Alignment.center,
+            ),
           ),
 
           // Book content overlay
@@ -4314,10 +4465,13 @@ class _RecipeBookScreenState extends State<RecipeBookScreen> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Background - Open book
-        Image.asset(
-          'assets/images/book_open.png',
-          fit: BoxFit.cover,
+        // Background - Open book, never distort
+        Positioned.fill(
+          child: Image.asset(
+            'assets/images/book_open.png',
+            fit: BoxFit.cover, // Fills screen, crops edges, no distortion
+            alignment: Alignment.center,
+          ),
         ),
 
         // Content
@@ -4614,6 +4768,165 @@ class _PulsatingGlowState extends State<PulsatingGlow> with SingleTickerProvider
   }
 
 }
+
+
+
+// ==========================================
+// BOILING POTION WIDGET - Custom Shader Effect
+// ==========================================
+class BoilingPotionPainter extends CustomPainter {
+  final double progress;
+  final Color liquidColor;
+  final Animation<double> animation;
+
+  BoilingPotionPainter({
+    required this.progress,
+    required this.liquidColor,
+    required this.animation,
+  }) : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    final bottleWidth = size.width * 0.7;
+    final bottleHeight = size.height * 0.75;
+
+    // Bottle body path (rounded bottom, tapered neck)
+    final bottlePath = Path()
+      ..moveTo(centerX - bottleWidth * 0.4, centerY - bottleHeight * 0.3)
+      ..quadraticBezierTo(
+        centerX - bottleWidth * 0.5, centerY,
+        centerX - bottleWidth * 0.35, centerY + bottleHeight * 0.4,
+      )
+      ..arcToPoint(
+        Offset(centerX + bottleWidth * 0.35, centerY + bottleHeight * 0.4),
+        radius: Radius.circular(bottleWidth * 0.35),
+        clockwise: false,
+      )
+      ..quadraticBezierTo(
+        centerX + bottleWidth * 0.5, centerY,
+        centerX + bottleWidth * 0.4, centerY - bottleHeight * 0.3,
+      )
+      ..lineTo(centerX + bottleWidth * 0.25, centerY - bottleHeight * 0.45)
+      ..lineTo(centerX - bottleWidth * 0.25, centerY - bottleHeight * 0.45)
+      ..close();
+
+    // Clip to bottle shape
+    canvas.clipPath(bottlePath);
+
+    // Calculate liquid level based on progress (fills from bottom)
+    final liquidTop = centerY + bottleHeight * 0.4 - (bottleHeight * 0.85 * progress);
+
+    // Create boiling wave effect
+    final wavePaint = Paint()
+      ..color = liquidColor
+      ..style = PaintingStyle.fill;
+
+    final wavePath = Path();
+    final waveHeight = 4.0;
+    final waveCount = 3;
+    final time = animation.value * 2 * pi;
+
+    wavePath.moveTo(centerX - bottleWidth * 0.6, centerY + bottleHeight * 0.5);
+
+    // Bottom of bottle
+    wavePath.lineTo(centerX - bottleWidth * 0.6, liquidTop);
+
+    // Wavy surface
+    for (double x = -bottleWidth * 0.6; x <= bottleWidth * 0.6; x += 2) {
+      final normalizedX = x / (bottleWidth * 0.5);
+      final waveY = liquidTop +
+          sin(normalizedX * waveCount * pi + time) * waveHeight +
+          sin(normalizedX * waveCount * 2 * pi - time * 1.5) * (waveHeight * 0.5);
+      wavePath.lineTo(centerX + x, waveY);
+    }
+
+    wavePath.lineTo(centerX + bottleWidth * 0.6, centerY + bottleHeight * 0.5);
+    wavePath.close();
+
+    // Draw liquid with gradient
+    final liquidGradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        liquidColor.withOpacity(0.9),
+        liquidColor.withOpacity(0.6),
+        liquidColor.withOpacity(0.8),
+      ],
+    );
+
+    wavePaint.shader = liquidGradient.createShader(
+      Rect.fromCenter(
+        center: Offset(centerX, centerY),
+        width: bottleWidth,
+        height: bottleHeight,
+      ),
+    );
+
+    canvas.drawPath(wavePath, wavePaint);
+
+    // Draw bubbles
+    final bubblePaint = Paint()
+      ..color = Colors.white.withOpacity(0.6)
+      ..style = PaintingStyle.fill;
+
+    final random = Random(42); // Fixed seed for consistent bubbles
+    final bubbleCount = 8;
+
+    for (int i = 0; i < bubbleCount; i++) {
+      final bubbleX = centerX + (random.nextDouble() - 0.5) * bottleWidth * 0.5;
+      final bubbleBaseY = centerY + bottleHeight * 0.3;
+      final bubbleOffset = (animation.value + i / bubbleCount) % 1.0;
+      final bubbleY = bubbleBaseY - bubbleOffset * bottleHeight * 0.6;
+      final bubbleSize = 2.0 + random.nextDouble() * 3.0;
+      final bubbleAlpha = (1.0 - bubbleOffset) * 0.6;
+
+      if (bubbleY > liquidTop) {
+        canvas.drawCircle(
+          Offset(bubbleX, bubbleY),
+          bubbleSize * (0.5 + bubbleOffset * 0.5),
+          Paint()..color = Colors.white.withOpacity(bubbleAlpha),
+        );
+      }
+    }
+
+    // Reset clip and draw bottle outline
+    canvas.restore();
+    canvas.save();
+
+    final outlinePaint = Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawPath(bottlePath, outlinePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant BoilingPotionPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.animation.value != animation.value;
+  }
+}
+
+class BoilingPotionWidget extends StatefulWidget {
+  final double progress;
+  final Color liquidColor;
+  final double size;
+
+  const BoilingPotionWidget({
+    super.key,
+    required this.progress,
+    required this.liquidColor,
+    required this.size,
+  });
+
+  @override
+  State<BoilingPotionWidget> createState() => _BoilingPotionWidgetState();
+}
+
+
 
 // ==========================================
 // ASPECT RATIO DEBUG FRAMES - Fixed Pixel Sizes
